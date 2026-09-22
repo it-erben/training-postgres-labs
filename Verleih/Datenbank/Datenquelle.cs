@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Npgsql;
+using Verleih.Buchungen;
 
 namespace Verleih.Datenbank;
 
@@ -20,6 +22,10 @@ public static class Datenquelle
             // Bonus aus Übung 1: keine Anweisung der Anwendung läuft länger als vier Sekunden.
             Options = "-c statement_timeout=4s",
         };
-        return new NpgsqlDataSourceBuilder(einstellungen.ConnectionString).Build();
+        var builder = new NpgsqlDataSourceBuilder(einstellungen.ConnectionString);
+        builder.MapEnum<Geraetezustand>("verleih.geraetezustand");
+        builder.ConfigureJsonOptions(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        builder.EnableDynamicJson();
+        return builder.Build();
     }
 }
