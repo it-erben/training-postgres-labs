@@ -9,6 +9,17 @@ public static class RentalDataSource
 
     public static NpgsqlDataSource Create(string connectionString)
     {
-        throw new NotImplementedException("Übung 1: RentalDataSource.Create baut die NpgsqlDataSource mit Application Name, Poolgrenze, Timeout und Auto-Prepare.");
+        var settings = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            ApplicationName = AppName,
+            MaxPoolSize = 4,
+            MinPoolSize = 0,
+            Timeout = 5,
+            MaxAutoPrepare = 20,
+            AutoPrepareMinUsages = 2,
+            // Bonus aus Übung 1: keine Anweisung der Anwendung läuft länger als vier Sekunden.
+            Options = "-c statement_timeout=4s",
+        };
+        return new NpgsqlDataSourceBuilder(settings.ConnectionString).Build();
     }
 }
