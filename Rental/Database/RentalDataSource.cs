@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Npgsql;
+using Rental.Bookings;
 
 namespace Rental.Database;
 
@@ -20,6 +22,10 @@ public static class RentalDataSource
             // Bonus aus Übung 1: keine Anweisung der Anwendung läuft länger als vier Sekunden.
             Options = "-c statement_timeout=4s",
         };
-        return new NpgsqlDataSourceBuilder(settings.ConnectionString).Build();
+        var builder = new NpgsqlDataSourceBuilder(settings.ConnectionString);
+        builder.MapEnum<DeviceCondition>("rental.device_condition");
+        builder.ConfigureJsonOptions(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        builder.EnableDynamicJson();
+        return builder.Build();
     }
 }
