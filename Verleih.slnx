@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Verleih/Verleih.csproj" />
+  <Project Path="Verleih.Tests/Verleih.Tests.csproj" />
+</Solution>
