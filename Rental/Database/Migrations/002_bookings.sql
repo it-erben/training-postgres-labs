@@ -1,0 +1,3 @@
+-- Übung 2: Enum-Typ rental.device_condition, Tabelle rental.booking mit
+-- tstzrange, jsonb und einem EXCLUDE-Constraint gegen Überlappungen je Gerät.
+-- btree_gist erlaubt device_id WITH = im selben GiST-Index.
