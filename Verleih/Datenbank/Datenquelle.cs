@@ -9,6 +9,17 @@ public static class Datenquelle
 
     public static NpgsqlDataSource Erzeuge(string verbindung)
     {
-        throw new NotImplementedException("Übung 1: Datenquelle.Erzeuge baut die NpgsqlDataSource mit Application Name, Poolgrenze, Timeout und Auto-Prepare.");
+        var einstellungen = new NpgsqlConnectionStringBuilder(verbindung)
+        {
+            ApplicationName = AnwendungsName,
+            MaxPoolSize = 4,
+            MinPoolSize = 0,
+            Timeout = 5,
+            MaxAutoPrepare = 20,
+            AutoPrepareMinUsages = 2,
+            // Bonus aus Übung 1: keine Anweisung der Anwendung läuft länger als vier Sekunden.
+            Options = "-c statement_timeout=4s",
+        };
+        return new NpgsqlDataSourceBuilder(einstellungen.ConnectionString).Build();
     }
 }
