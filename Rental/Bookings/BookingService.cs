@@ -1,3 +1,4 @@
+using System.Data;
 using Npgsql;
 
 namespace Rental.Bookings;
@@ -19,13 +20,61 @@ public sealed class BookingService(NpgsqlDataSource dataSource)
     /// <summary>Bonus: serialisiert Buchungen desselben Kunden über einen Advisory Lock.</summary>
     public bool UseAdvisoryLock { get; set; }
 
-    public Task<long> BookAsync(Booking booking, CancellationToken ct = default)
+    public async Task<long> BookAsync(Booking booking, CancellationToken ct = default)
     {
-        throw new NotImplementedException("Übung 3: serialisierbare Transaktion mit Prüfung, Wiederholung und Fehlerzuordnung.");
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await AttemptAsync(booking, ct);
+            }
+            catch (PostgresException e) when (IsRetryable(e) && attempt < MaxAttempts)
+            {
+                // Die gesamte Transaktion einschließlich der fachlichen Prüfung wird erneut ausgeführt.
+            }
+            catch (PostgresException e) when (e.SqlState is PostgresErrorCodes.ExclusionViolation
+                                                or PostgresErrorCodes.UniqueViolation
+                                                or PostgresErrorCodes.CheckViolation
+                                                or PostgresErrorCodes.ForeignKeyViolation)
+            {
+                throw new BookingConflictException(e.ConstraintName ?? e.SqlState, e);
+            }
+        }
     }
 
-    public static bool IsRetryable(PostgresException e)
+    public static bool IsRetryable(PostgresException e) =>
+        e.SqlState is PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected;
+
+    private async Task<long> AttemptAsync(Booking booking, CancellationToken ct)
     {
-        throw new NotImplementedException("Übung 3: 40001 und 40P01 sind wiederholbar.");
+        await using var conn = await dataSource.OpenConnectionAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+
+        if (UseAdvisoryLock)
+        {
+            await using var lockCmd = new NpgsqlCommand("SELECT pg_advisory_xact_lock($1)", conn, tx);
+            lockCmd.Parameters.Add(new NpgsqlParameter<long> { TypedValue = booking.CustomerId });
+            await lockCmd.ExecuteNonQueryAsync(ct);
+        }
+
+        if (BeforeCheck is not null)
+        {
+            await BeforeCheck(conn, ct);
+        }
+
+        await using (var countCmd = new NpgsqlCommand("SELECT count(*) FROM rental.booking WHERE customer_id = $1", conn, tx))
+        {
+            countCmd.Parameters.Add(new NpgsqlParameter<int> { TypedValue = booking.CustomerId });
+            var existing = (long)(await countCmd.ExecuteScalarAsync(ct))!;
+            if (existing >= MaxBookingsPerCustomer)
+            {
+                await tx.RollbackAsync(ct);
+                throw new BookingRejectedException($"Kunde {booking.CustomerId} hat bereits {existing} Buchungen.");
+            }
+        }
+
+        var id = await BookingStore.CreateAsync(conn, tx, booking, ct);
+        await tx.CommitAsync(ct);
+        return id;
     }
 }
