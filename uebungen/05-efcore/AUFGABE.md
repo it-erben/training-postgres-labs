@@ -3,18 +3,17 @@
 ## Worum es geht
 
 Bis hierher hast du SQL selbst geschrieben. EF Core erzeugt es aus einem
-Modell und LINQ-Ausdrücken. Der Vorteil ist ein Objektmodell mit
-Änderungsverfolgung; der Preis ist, dass man nicht mehr direkt sieht,
-welche Anweisungen zum Server gehen. Diese Übung macht die Anweisungen
+Modell und LINQ-Ausdrücken. Du bekommst ein Objektmodell mit
+Änderungsverfolgung, siehst dafür aber nicht mehr direkt, welche
+Anweisungen zum Server gehen. Diese Übung macht die Anweisungen
 wieder sichtbar: Die Tests bauen den Kontext mit einem Interceptor, der
 jede gesendete Anweisung zählt und die letzte festhält.
 
 Das Schema existiert bereits aus den Übungen 1 und 2, mit Enum-Typ,
 Bereichsspalte und JSON-Dokument. EF Core wird darauf abgebildet, ohne
-eigene Migration. Vier Muster stehen im Mittelpunkt: keine N+1-Abfragen,
-keine Änderungsverfolgung für Übersichten, Mengenänderungen ohne Laden,
-und die Systemspalte `xmin` als Versionsmerkmal für optimistische
-Sperren.
+eigene Migration. Geübt werden vier Muster: Abfragen ohne N+1, Übersichten
+ohne Änderungsverfolgung, Mengenänderungen ohne Laden und die
+Systemspalte `xmin` als Versionsmerkmal für optimistische Sperren.
 
 ## Was du vorfindest
 

@@ -117,9 +117,9 @@ for (var attempt = 1; ; attempt++)
 ```
 
 Beim dritten wiederholbaren Fehler greift der erste `catch` nicht mehr
-(`attempt < MaxAttempts` ist falsch), und die `PostgresException` verlässt die
-Methode. Genau das erwartet der Test
-`Conflict_is_attempted_at_most_three_times`.
+(`attempt < MaxAttempts` ist falsch), und die `PostgresException` verlässt
+die Methode. Der Test `Conflict_is_attempted_at_most_three_times` prüft
+genau diesen Ablauf.
 
 `BookingRejectedException` und `OperationCanceledException` laufen durch beide
 `catch`-Blöcke hindurch und werden nicht wiederholt.

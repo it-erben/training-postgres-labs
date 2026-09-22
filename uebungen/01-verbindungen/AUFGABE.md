@@ -39,8 +39,8 @@ Geräte: Bohrhammer und Akkuschrauber (`drills`), Stichsäge und Kreissäge
 Die Fixture ruft `RentalDataSource.Create(TestEnvironment.ConnectionString)`
 beim ersten Zugriff auf `db.AppSource` auf. Solange der Stub wirft, scheitern
 alle Tests der Übung mit
-`NotImplementedException: Übung 1: RentalDataSource.Create ...`. Das ist der
-erwartete Startzustand.
+`NotImplementedException: Übung 1: RentalDataSource.Create ...`. Rot ist hier
+der erwartete Startzustand.
 
 ## Schritt für Schritt
 

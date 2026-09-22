@@ -9,12 +9,12 @@ Ladevorgänge `COPY`: Die Zeilen fließen als ein Strom in einer Anweisung,
 im Binärformat ohne Parsing je Zeile. Npgsql bietet dafür
 `BeginBinaryImport`.
 
-Zwei Eigenschaften machen den Import brauchbar. Erstens: Alles oder
-nichts. Eine fehlerhafte Zeile in der Mitte darf keine halb geladene
-Tabelle hinterlassen. `COPY` verwirft alle übertragenen Zeilen, wenn der
-Import nicht abgeschlossen wird; du musst nichts zurückrollen, nur nicht
-abschließen. Zweitens: Der Import liest die Eingabe zeilenweise, während
-er schreibt. Wer die CSV erst vollständig in den Speicher lädt, braucht
+Brauchbar wird der Import durch zwei Eigenschaften. Eine fehlerhafte
+Zeile in der Mitte darf keine halb geladene Tabelle hinterlassen. `COPY`
+verwirft alle übertragenen Zeilen, wenn der Import nicht abgeschlossen
+wird; du musst nichts zurückrollen, nur nicht abschließen. Und der Import
+liest die Eingabe zeilenweise, während er schreibt. Wer die CSV erst
+vollständig in den Speicher lädt, braucht
 für eine 200-MB-Datei 200 MB Speicher und verliert die Zeit, in der Lesen
 und Schreiben parallel laufen könnten.
 
@@ -129,7 +129,7 @@ alle Zeilen. Danach disposed `await using` die Transaktion mit Rollback und
 gibt die Verbindung an den Pool zurück. Du schreibst dafür keine Zeile
 Aufräumcode.
 
-Wichtig: Prüfe die Zeile, bevor du `StartRowAsync` aufrufst. Eine halb
+Prüfe die Zeile, bevor du `StartRowAsync` aufrufst. Eine halb
 geschriebene Zeile beim Abbruch ist zwar unschädlich, aber unnötig.
 
 ### 4. Abschließen

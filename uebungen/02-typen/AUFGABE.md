@@ -8,11 +8,11 @@ Bereichstyp `tstzrange`, einen Enum-Typ und `jsonb`. Npgsql bildet sie auf
 .NET-Typen ab, wenn man ihm sagt, wie. Diese Übung baut die Tabelle, die
 Zuordnung und die Zugriffe.
 
-Zwei Dinge sollen dabei sichtbar werden. Erstens: Der Server kann eine
-fachliche Regel durchsetzen, die im Anwendungscode schwer ist. Ein
+Dabei sollen zwei Dinge sichtbar werden. Der Server kann eine fachliche
+Regel durchsetzen, die im Anwendungscode schwer ist: Ein
 `EXCLUDE`-Constraint verhindert, dass zwei Buchungen desselben Geräts sich
 zeitlich überlappen, auch wenn zwei Anwendungen gleichzeitig schreiben.
-Zweitens: Zeitstempel sind die häufigste stille Fehlerquelle zwischen .NET
+Daneben sind Zeitstempel die häufigste stille Fehlerquelle zwischen .NET
 und PostgreSQL. Ein `DateTime` mit `Kind = Local` wird von Npgsql ohne
 explizite Typangabe als `timestamp` ohne Zeitzone gesendet, und der Server
 deutet den Wert dann in seiner Sitzungszeitzone um. Es gibt keinen Fehler,

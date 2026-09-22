@@ -3,8 +3,8 @@
 ## Worum es geht
 
 Die letzte Übung verlässt die einzelne Anweisung und sieht auf die
-Anwendung im Betrieb. Drei Fragen: Wie erfahren andere Teile des Systems,
-dass ein Gerät zurückgegeben wurde, ohne die Tabelle abzufragen? Wie sieht
+Anwendung im Betrieb. Wie erfahren andere Teile des Systems, dass ein
+Gerät zurückgegeben wurde, ohne die Tabelle abzufragen? Wie sieht
 die Anwendung ihre eigenen Serververbindungen, um ein Problem zu erkennen,
 bevor der DBA anruft? Und wie liest sie von einem Replikat, wenn der
 Cluster eines hat?
