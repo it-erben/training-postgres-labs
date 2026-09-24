@@ -6,7 +6,7 @@ Geräten, Kunden und Buchungen.
 
 ## SQL-Serie
 
-Sechzehn Übungen an einem Ticketsystem mit Agents, Tickets und Kommentaren,
+Fünfzehn Übungen an einem Ticketsystem mit Agents, Tickets und Kommentaren,
 eine je Kursmodul. Arbeitsweise, Aufbau der Übungen und die vollständige
 Übersicht stehen in [sql/README.md](sql/README.md).
 

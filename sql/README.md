@@ -1,12 +1,12 @@
 # PostgreSQL: SQL-Übungsserie
 
-Sechzehn Übungen an einem Ticketsystem mit Agents, Tickets und Kommentaren,
+Fünfzehn Übungen an einem Ticketsystem mit Agents, Tickets und Kommentaren,
 eine je Kursmodul. Jede Übung baut auf demselben Datenbestand auf und läuft
 ohne zusätzliche Werkzeuge im pgAdmin.
 
 ## Arbeitsweise
 
-Die Übungen laufen im pgAdmin Query Tool gegen deine eigene `app`-Datenbank
+Die Übungen laufen im pgAdmin Query Tool gegen die eigene `app`-Datenbank
 im Schema `tickets`. `setup.sql` legt das Schema mit dem Datenbestand an;
 ein erneuter Lauf löscht `tickets` samt aller Übungsobjekte darin und baut
 es neu auf. Andere Schemas bleiben dabei unberührt.

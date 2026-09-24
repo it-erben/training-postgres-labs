@@ -44,6 +44,7 @@ Die Kontrollabfrage am Ende von `setup.sql` liefert:
  agents | tickets | kommentare
 --------+---------+------------
      50 |  800000 |    2000678
+(1 row)
 ```
 
 Die Spalten von `ticket`:
@@ -57,22 +58,24 @@ ORDER BY ordinal_position;
 
 ```text
  column_name |        data_type         | is_nullable
--------------+---------------------------+-------------
- id          | bigint                    | NO
- agent_id    | bigint                    | YES
- subject     | text                      | NO
- status      | text                      | NO
- priority    | integer                   | NO
- metadata    | jsonb                     | NO
- created_at  | timestamp with time zone  | NO
- closed_at   | timestamp with time zone  | YES
+-------------+--------------------------+-------------
+ id          | bigint                   | NO
+ agent_id    | bigint                   | YES
+ subject     | text                     | NO
+ status      | text                     | NO
+ priority    | integer                  | NO
+ metadata    | jsonb                    | NO
+ created_at  | timestamp with time zone | NO
+ closed_at   | timestamp with time zone | YES
+(8 rows)
 ```
 
 ## Hinweise
 
-Der Lauf dauert auf dem Trainer-Server etwa eine Minute. Ein erneuter Lauf
-von `setup.sql` löscht das Schema `tickets` samt aller Übungsobjekte darin
-und baut es neu auf; die Mengen und Werte bleiben dabei gleich.
+Ein Lauf gegen eine lokale Testinstanz dauerte rund 58 Sekunden, auf dem
+Kurs-Server kann die Dauer abweichen. Ein erneuter Lauf von `setup.sql`
+löscht das Schema `tickets` samt aller Übungsobjekte darin und baut es neu
+auf; die Mengen und Werte bleiben dabei gleich.
 
 Bleibt der Lauf hängen und bricht nach einigen Sekunden mit
 `ERROR: canceling statement due to lock timeout` ab, hat ein anderer

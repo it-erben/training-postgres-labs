@@ -64,11 +64,13 @@ ORDER BY s.i;
 -- liefert bei erneutem Aufruf mit denselben Argumenten ohnehin denselben
 -- Wert, ein Alias erspart aber die doppelte, lange CASE-Expression.
 --
--- ticket.metadata: channel ist immer gesetzt (drei Werte), pool.attrs
--- liefert zwei von vier weiteren Schlüsseln, escalated/vip_customer sind
--- seltene Zusatzschlüssel: dieselbe Konstruktion wie bei product.attributes
--- in shop.sql. Grundlage für die GIN-Übung in Modul 02 (die Demo mit
--- derselben Mechanik läuft dort gegen product.attributes, siehe shop.sql).
+-- ticket.metadata: channel ist immer gesetzt (drei Werte). pool.attrs wählt
+-- aus den vier Schlüsseln source, csat_score, reopened_count und
+-- sla_target_hours per seed_rand zwei aus und fasst sie zu einem Objekt
+-- zusammen, sodass jedes Ticket nur zwei der vier weiteren Schlüssel trägt.
+-- escalated und vip_customer sind seltene Zusatzschlüssel, die nur unterhalb
+-- eines festen seed_rand-Schwellwerts gesetzt werden. Grundlage für die
+-- GIN-Übung in Modul 02.
 WITH ticket_rows AS (
     SELECT
         t.id,
