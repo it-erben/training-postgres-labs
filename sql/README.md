@@ -19,20 +19,20 @@ Hinweise. `loesung.sql` ist die Musterlösung und liegt im selben Verzeichnis.
 
 ## Übungen
 
-| Nr. | Übung                                    | Modul im Kurs                     |
-| --- | ---------------------------------------- | --------------------------------- |
-| 00  | [Einrichtung](00-einrichtung/AUFGABE.md) | Einstieg und Arbeitsplatz         |
-| 01  | Architektur                              | Architektur                       |
-| 02  | Indizes und EXPLAIN                      | Indizes und EXPLAIN               |
-| 03  | Umstieg von Oracle                       | Oracle und PostgreSQL             |
-| 04  | Transaktionen                            | Transaktionen, Isolation, Sperren |
-| 05  | Moderne SQL-Features                     | Moderne SQL-Features              |
-| 06  | Constraints                              | Constraints                       |
-| 07  | Partitionierung                          | Partitionierung                   |
-| 08  | Materialized Views                       | Materialized Views                |
-| 10  | Datentypen                               | Datentypen                        |
-| 11  | Fremddaten                               | Fremddaten und Integration        |
-| 12  | CNPG aus Anwendersicht                   | CNPG aus Anwendersicht            |
-| 13  | Verbindungen und Pooling                 | Verbindungen und Pooling          |
-| 14  | Hochverfügbarkeit                        | Hochverfügbarkeit, Dos and Don'ts |
-| 15  | Backup und Recovery                      | Backup und Recovery               |
+| Nr. | Übung                                            | Modul im Kurs                     |
+| --- | ------------------------------------------------ | --------------------------------- |
+| 00  | [Einrichtung](00-einrichtung/AUFGABE.md)         | Einstieg und Arbeitsplatz         |
+| 01  | Architektur                                      | Architektur                       |
+| 02  | Indizes und EXPLAIN                              | Indizes und EXPLAIN               |
+| 03  | Umstieg von Oracle                               | Oracle und PostgreSQL             |
+| 04  | Transaktionen                                    | Transaktionen, Isolation, Sperren |
+| 05  | Moderne SQL-Features                             | Moderne SQL-Features              |
+| 06  | Constraints                                      | Constraints                       |
+| 07  | [Partitionierung](07-partitionierung/AUFGABE.md) | Partitionierung                   |
+| 08  | Materialized Views                               | Materialized Views                |
+| 10  | Datentypen                                       | Datentypen                        |
+| 11  | Fremddaten                                       | Fremddaten und Integration        |
+| 12  | CNPG aus Anwendersicht                           | CNPG aus Anwendersicht            |
+| 13  | Verbindungen und Pooling                         | Verbindungen und Pooling          |
+| 14  | Hochverfügbarkeit                                | Hochverfügbarkeit, Dos and Don'ts |
+| 15  | Backup und Recovery                              | Backup und Recovery               |
