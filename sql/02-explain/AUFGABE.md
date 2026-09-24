@@ -24,6 +24,7 @@ eines Zeitfensters von sieben Tagen.
 
    ```sql
    SET search_path = tickets;
+   SET TimeZone = 'UTC';
    EXPLAIN (ANALYZE, BUFFERS)
    SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
    WHERE a.team = 'Technik' AND t.status = 'open';
@@ -33,6 +34,11 @@ eines Zeitfensters von sieben Tagen.
    SELECT count(*) FROM comment
    WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
    ```
+
+   `created_at` ist `timestamptz`; ein Datumsliteral ohne Zonenangabe wird
+   anhand der Sitzungszeitzone ausgewertet. `SET TimeZone = 'UTC';` macht
+   die im Plan gezeigten Literale unabhängig davon, welche Zeitzone die
+   Sitzung sonst verwendet.
 
    Referenzlauf, gekürzt auf die auffälligen Zeilen:
 
@@ -106,6 +112,7 @@ eines Zeitfensters von sieben Tagen.
 
 ```sql
 SET search_path = tickets;
+SET TimeZone = 'UTC';
 EXPLAIN (COSTS OFF) SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
 WHERE a.team = 'Technik' AND t.status = 'open';
 EXPLAIN (COSTS OFF) SELECT id FROM ticket WHERE metadata ? 'escalated';
@@ -113,6 +120,7 @@ EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
 WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
 SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
 FROM pg_stat_user_indexes WHERE schemaname = 'tickets' ORDER BY indexrelname;
+RESET TimeZone;
 ```
 
 Referenzlauf:

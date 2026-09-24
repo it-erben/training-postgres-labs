@@ -1,6 +1,10 @@
 -- Musterlösung zu SQL-Übung 2. Läuft vollständig im Query Tool und lässt
 -- sich wiederholen: CREATE INDEX IF NOT EXISTS überspringt vorhandene Indizes.
+-- created_at ist timestamptz; SET TimeZone = 'UTC' macht die in den Plänen
+-- gezeigten Literale unabhängig von der Sitzungszeitzone. RESET TimeZone am
+-- Ende gibt die Sitzungseinstellung wieder frei.
 SET search_path = tickets;
+SET TimeZone = 'UTC';
 
 -- Aufgabe 1: Ausgangspläne der drei Zugriffe (Befunde siehe AUFGABE.md)
 EXPLAIN (ANALYZE, BUFFERS)
@@ -41,3 +45,5 @@ SELECT pg_size_pretty(pg_relation_size('tickets.ticket')) AS ticket_tabelle,
 -- Aufgabe 5: Gegenprobe mit einem Zeitfenster von einem Jahr
 EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
 WHERE created_at >= '2025-01-01' AND created_at < '2026-01-01';
+
+RESET TimeZone;
