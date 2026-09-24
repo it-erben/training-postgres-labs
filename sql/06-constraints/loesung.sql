@@ -1,0 +1,55 @@
+-- Musterlösung zu SQL-Übung 6. Läuft vollständig im Query Tool und lässt
+-- sich wiederholen: Der Rücksetzblock entfernt zu Beginn alle
+-- Übungsobjekte. ticket_metadata_gin (Übungen 2 und 5) bleibt unberührt.
+SET search_path = tickets;
+
+DROP TABLE IF EXISTS tickets.ticket_referenz;
+DROP TABLE IF EXISTS tickets.bereitschaft;
+ALTER TABLE ticket DROP CONSTRAINT IF EXISTS ticket_priority_check;
+DROP INDEX IF EXISTS comment_parent_idx;
+
+-- Aufgabe 1: CHECK zuerst NOT VALID anlegen, danach validieren
+ALTER TABLE ticket
+    ADD CONSTRAINT ticket_priority_check CHECK (priority BETWEEN 1 AND 4) NOT VALID;
+ALTER TABLE ticket VALIDATE CONSTRAINT ticket_priority_check;
+
+-- Aufgabe 2: Fremdschlüssel ohne unterstützenden Index finden (Ergebnis
+-- siehe AUFGABE.md: comment_parent_id_fkey, comment_ticket_id_fkey,
+-- ticket_agent_id_fkey), Index für comment.parent_id anlegen
+CREATE INDEX comment_parent_idx ON comment (parent_id);
+
+-- Aufgabe 3: Bereitschaftsplan ohne überlappende Zeiträume je Agent
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+CREATE TABLE bereitschaft (
+    agent_id bigint REFERENCES agent(id),
+    zeitraum tstzrange NOT NULL,
+    EXCLUDE USING gist (agent_id WITH =, zeitraum WITH &&)
+);
+
+-- Aufgabe 4: zwei angrenzende Zeiträume (erlaubt), ein überlappender (23P01)
+INSERT INTO bereitschaft (agent_id, zeitraum) VALUES
+    (1, tstzrange('2026-09-01 00:00+00', '2026-09-08 00:00+00', '[)')),
+    (1, tstzrange('2026-09-08 00:00+00', '2026-09-15 00:00+00', '[)'));
+-- INSERT INTO bereitschaft (agent_id, zeitraum)
+-- VALUES (1, tstzrange('2026-09-05 00:00+00', '2026-09-10 00:00+00', '[)'));
+-- -- ERROR: 23P01: conflicting key value violates exclusion constraint
+-- -- "bereitschaft_agent_id_zeitraum_excl"
+
+-- Aufgabe 5: aufschiebbarer Fremdschlüssel, Prüfung erst beim COMMIT
+CREATE TABLE ticket_referenz (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ticket_id bigint NOT NULL REFERENCES ticket(id) DEFERRABLE INITIALLY DEFERRED
+);
+-- BEGIN;
+-- INSERT INTO ticket_referenz (ticket_id) VALUES (9999999);
+-- -- INSERT 0 1, ohne Fehler: Ticket 9999999 existiert nicht.
+-- COMMIT;
+-- -- ERROR: 23503: insert or update on table "ticket_referenz" violates
+-- -- foreign key constraint "ticket_referenz_ticket_id_fkey"
+
+-- Kontrolle (Ergebnis siehe AUFGABE.md)
+SELECT conname, contype, convalidated FROM pg_constraint
+WHERE conrelid IN ('ticket'::regclass, 'bereitschaft'::regclass)
+  AND contype IN ('c', 'x') ORDER BY conname;
+SELECT agent_id, zeitraum FROM bereitschaft ORDER BY agent_id, lower(zeitraum);
