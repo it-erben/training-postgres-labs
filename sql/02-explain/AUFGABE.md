@@ -1,0 +1,216 @@
+# SQL-Übung 2: Indizes und EXPLAIN
+
+## Ziel
+
+Du liest drei Ausführungspläne mit `EXPLAIN (ANALYZE, BUFFERS)`, legst für
+jeden Zugriff einen passenden Index an und vergleichst die Pläne danach
+erneut. Zum Schluss prüfst du die Indexgrößen und eine Gegenprobe mit einem
+breiteren Zeitfenster.
+
+## Ausgangsstand
+
+Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
+eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
+Tool mit `Auto commit` an und `Auto rollback on error` aus.
+
+Drei Zugriffe stehen im Mittelpunkt: offene Tickets von Agents aus dem Team
+Technik, Tickets mit dem Metadaten-Schlüssel `escalated` und Kommentare
+eines Zeitfensters von sieben Tagen.
+
+## Aufgaben
+
+1. Führe für jeden der drei Zugriffe `EXPLAIN (ANALYZE, BUFFERS)` aus und
+   notiere Planknoten, geschätzte und tatsächliche Zeilen:
+
+   ```sql
+   SET search_path = tickets;
+   EXPLAIN (ANALYZE, BUFFERS)
+   SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
+   WHERE a.team = 'Technik' AND t.status = 'open';
+   EXPLAIN (ANALYZE, BUFFERS)
+   SELECT id FROM ticket WHERE metadata ? 'escalated';
+   EXPLAIN (ANALYZE, BUFFERS)
+   SELECT count(*) FROM comment
+   WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
+   ```
+
+   Referenzlauf, gekürzt auf die auffälligen Zeilen:
+
+   ```text
+    Gather (actual time=24.959..115.752 rows=3784.00 loops=1)
+      ->  Hash Join (actual rows=1261.33 loops=3)
+            ->  Parallel Seq Scan on ticket t (rows=5089 actual rows=4381.33 loops=3)
+                  Filter: (status = 'open'::text)
+
+    Seq Scan on ticket (rows=104066 actual rows=96231.00 loops=1)
+      Filter: (metadata ? 'escalated'::text)
+
+    Finalize Aggregate (actual rows=1.00 loops=1)
+      ->  Parallel Seq Scan on comment (rows=8345 actual rows=6321.00 loops=3)
+            Filter: (created_at >= ... AND created_at < ...)
+   ```
+
+   Alle drei Zugriffe lesen die Tabelle vollständig. Die Schätzungen liegen
+   nahe an den tatsächlichen Zeilen; ein Sequential Scan ist bei diesen
+   Ergebnisanteilen zulässig.
+
+2. Lege für jeden Zugriff einen Index an:
+
+   ```sql
+   CREATE INDEX ticket_offen_idx
+       ON ticket (agent_id) WHERE status <> 'closed';
+   CREATE INDEX ticket_metadata_gin
+       ON ticket USING gin (metadata);
+   CREATE INDEX comment_created_brin
+       ON comment USING brin (created_at);
+   ANALYZE ticket;
+   ANALYZE comment;
+   ```
+
+   `ticket_offen_idx` ist ein Teilindex: Er enthält nur Zeilen, deren Status
+   nicht `closed` ist, und passt damit zur Filterbedingung `status = 'open'`.
+   `ticket_metadata_gin` unterstützt den Enthaltenseinsoperator `?` auf
+   `jsonb`. `comment_created_brin` fasst `created_at` blockweise zusammen.
+
+3. Vergleiche die drei Pläne erneut mit denselben `EXPLAIN`-Abfragen wie in
+   Aufgabe 1. `ticket_offen_idx` und `ticket_metadata_gin` erscheinen
+   zuverlässig als `Bitmap Index Scan`. `comment_created_brin` bleibt im
+   Referenzlauf ungenutzt: Der Plan zeigt weiterhin einen
+   `Parallel Seq Scan on comment`. Notiere, welcher Indexname in welchem
+   Plan auftaucht und welcher nicht. Der Hinweis zu `comment_created_brin`
+   erklärt, warum das so ist.
+
+4. Vergleiche die Größe der drei neuen Indizes mit der Größe der jeweiligen
+   Tabelle:
+
+   ```sql
+   SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
+   FROM pg_stat_user_indexes WHERE schemaname = 'tickets' ORDER BY indexrelname;
+   SELECT pg_size_pretty(pg_relation_size('tickets.ticket')) AS ticket_tabelle,
+          pg_size_pretty(pg_relation_size('tickets.comment')) AS comment_tabelle;
+   ```
+
+5. Gegenprobe: Weite das Zeitfenster der Kommentarabfrage auf ein ganzes
+   Jahr aus und sieh dir den Plan an:
+
+   ```sql
+   EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
+   WHERE created_at >= '2025-01-01' AND created_at < '2026-01-01';
+   ```
+
+   Der Plan bleibt ein `Parallel Seq Scan on comment`, wie schon beim
+   Sieben-Tage-Fenster. Ein breiteres Fenster ändert hier nichts, weil schon
+   das enge Fenster keinen Nutzen aus `comment_created_brin` zieht.
+
+## Ergebnis prüfen
+
+```sql
+SET search_path = tickets;
+EXPLAIN (COSTS OFF) SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
+WHERE a.team = 'Technik' AND t.status = 'open';
+EXPLAIN (COSTS OFF) SELECT id FROM ticket WHERE metadata ? 'escalated';
+EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
+WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
+SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
+FROM pg_stat_user_indexes WHERE schemaname = 'tickets' ORDER BY indexrelname;
+```
+
+Referenzlauf:
+
+```text
+ Hash Join
+   Hash Cond: (t.agent_id = a.id)
+   ->  Bitmap Heap Scan on ticket t
+         Recheck Cond: (status <> 'closed'::text)
+         Filter: (status = 'open'::text)
+         ->  Bitmap Index Scan on ticket_offen_idx
+   ->  Hash
+         ->  Seq Scan on agent a
+               Filter: (team = 'Technik'::text)
+(9 rows)
+
+ Bitmap Heap Scan on ticket
+   Recheck Cond: (metadata ? 'escalated'::text)
+   ->  Bitmap Index Scan on ticket_metadata_gin
+         Index Cond: (metadata ? 'escalated'::text)
+(4 rows)
+
+ Finalize Aggregate
+   ->  Gather
+         Workers Planned: 2
+         ->  Partial Aggregate
+               ->  Parallel Seq Scan on comment
+                     Filter: ((created_at >= '2026-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-08 00:00:00+00'::timestamp with time zone))
+(6 rows)
+
+     indexrelname     | pg_size_pretty
+-----------------------+----------------
+ agent_email_key      | 16 kB
+ agent_pkey           | 16 kB
+ comment_created_brin | 24 kB
+ comment_pkey         | 43 MB
+ ticket_metadata_gin  | 6168 kB
+ ticket_offen_idx     | 296 kB
+ ticket_pkey          | 17 MB
+(7 rows)
+```
+
+Zusätzlich zur Tabellengröße gemessen:
+
+```text
+ ticket_tabelle | comment_tabelle
+----------------+-----------------
+ 154 MB         | 208 MB
+(1 row)
+```
+
+`comment_created_brin` erscheint in diesem Ergebnis nicht im dritten Plan,
+obwohl der Index angelegt ist: Der Planer hält den `Parallel Seq Scan`
+weiterhin für günstiger. Das ist gegenüber der ursprünglichen Erwartung
+dieser Übung eine Abweichung; der Abschnitt "Hinweise" erklärt sie.
+
+## Hinweise
+
+`ticket_offen_idx` und `ticket_metadata_gin` verkleinern die betroffenen
+Zugriffe deutlich: Ein `Bitmap Index Scan` liest nur die passenden
+Einträge, statt die gesamte Tabelle zu filtern.
+
+`comment_created_brin` verhält sich anders als die anderen beiden Indizes.
+Ein BRIN-Index summiert je Block-Bereich nur Minimum und Maximum der
+indizierten Spalte. Er hilft nur, wenn benachbarte Zeilen auch ähnliche
+Werte tragen, also wenn die physische Reihenfolge der Tabelle mit der
+Spalte korreliert:
+
+```sql
+SELECT attname, correlation FROM pg_stats
+WHERE schemaname = 'tickets' AND tablename = 'comment' AND attname = 'created_at';
+```
+
+Der Wert liegt im Testlauf nahe 0 (mehrfach zwischen -0.01 und 0.01), also
+praktisch unkorreliert. Der Grund liegt in `setup.sql`: Ein Kommentar
+erscheint physisch in der Reihenfolge seines Tickets, sein `created_at`
+aber richtet sich nach dem `created_at` des Tickets, das unabhängig von der
+`id` über 730 Tage verteilt zufällig gewählt wird. Physisch benachbarte
+Kommentare haben deshalb keine benachbarten Zeitstempel.
+
+Mit `EXPLAIN (ANALYZE, BUFFERS)` und erzwungenem `enable_seqscan = off`
+lässt sich das direkt zeigen: Der `Bitmap Index Scan` auf
+`comment_created_brin` liefert zwar nur wenige Indexseiten, aber die
+`Bitmap Heap Scan`-Zeile zeigt danach `Heap Blocks: lossy` in Höhe der
+gesamten Tabelle, `relpages` von `comment` eingeschlossen. Der Index kann
+also keinen einzigen Block ausschließen; er liest de facto dieselbe Menge
+Daten wie ein `Seq Scan`, nur mit zusätzlichem Rechecken. In seltenen
+Läufen, in denen die zufällige `ANALYZE`-Stichprobe eine minimal andere
+Schätzung liefert, wählt der Planer stattdessen genau diesen
+`Bitmap Heap Scan` über `comment_created_brin`. Beide Pläne lesen dieselbe
+Datenmenge; welcher davon erscheint, ist für das Ergebnis der Übung ohne
+Bedeutung.
+
+`comment_created_brin` bleibt trotzdem mit 24 kB der mit Abstand kleinste
+der drei neuen Indizes, gegenüber 43 MB für `comment_pkey`. Ein BRIN-Index
+lohnt sich für Spalten, die tatsächlich mit der Einfügereihenfolge
+korrelieren, etwa eine echte Ereigniszeit in einer append-only Tabelle,
+nicht für ein zufällig verteiltes Datum wie hier.
+
+`loesung.sql` verwendet `CREATE INDEX IF NOT EXISTS` und lässt sich deshalb
+mehrfach ausführen, ohne vorhandene Indizes erneut anzulegen.

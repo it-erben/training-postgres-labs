@@ -22,8 +22,8 @@ Hinweise. `loesung.sql` ist die Musterlösung und liegt im selben Verzeichnis.
 | Nr. | Übung                                            | Modul im Kurs                     |
 | --- | ------------------------------------------------ | --------------------------------- |
 | 00  | [Einrichtung](00-einrichtung/AUFGABE.md)         | Einstieg und Arbeitsplatz         |
-| 01  | Architektur                                      | Architektur                       |
-| 02  | Indizes und EXPLAIN                              | Indizes und EXPLAIN               |
+| 01  | [Architektur](01-architektur/AUFGABE.md)         | Architektur                       |
+| 02  | [Indizes und EXPLAIN](02-explain/AUFGABE.md)     | Indizes und EXPLAIN               |
 | 03  | Umstieg von Oracle                               | Oracle und PostgreSQL             |
 | 04  | Transaktionen                                    | Transaktionen, Isolation, Sperren |
 | 05  | Moderne SQL-Features                             | Moderne SQL-Features              |
