@@ -24,8 +24,8 @@ Hinweise. `loesung.sql` ist die Musterlösung und liegt im selben Verzeichnis.
 | 00  | [Einrichtung](00-einrichtung/AUFGABE.md)         | Einstieg und Arbeitsplatz         |
 | 01  | [Architektur](01-architektur/AUFGABE.md)         | Architektur                       |
 | 02  | [Indizes und EXPLAIN](02-explain/AUFGABE.md)     | Indizes und EXPLAIN               |
-| 03  | Umstieg von Oracle                               | Oracle und PostgreSQL             |
-| 04  | Transaktionen                                    | Transaktionen, Isolation, Sperren |
+| 03  | [Umstieg von Oracle](03-oracle/AUFGABE.md)       | Oracle und PostgreSQL             |
+| 04  | [Transaktionen](04-transaktionen/AUFGABE.md)     | Transaktionen, Isolation, Sperren |
 | 05  | Moderne SQL-Features                             | Moderne SQL-Features              |
 | 06  | Constraints                                      | Constraints                       |
 | 07  | [Partitionierung](07-partitionierung/AUFGABE.md) | Partitionierung                   |
