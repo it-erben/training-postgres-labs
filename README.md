@@ -1,4 +1,16 @@
-# PostgreSQL mit .NET: Übungsserie
+# PostgreSQL-Übungen
+
+Zwei Übungsserien für den PostgreSQL-Kurs: eine SQL-Serie im pgAdmin Query
+Tool gegen ein Ticketsystem, eine .NET-Serie mit einem Verleihdienst aus
+Geräten, Kunden und Buchungen.
+
+## SQL-Serie
+
+Sechzehn Übungen an einem Ticketsystem mit Agents, Tickets und Kommentaren,
+eine je Kursmodul. Arbeitsweise, Aufbau der Übungen und die vollständige
+Übersicht stehen in [sql/README.md](sql/README.md).
+
+## .NET-Serie
 
 Sechs aufeinander aufbauende Übungen an einem Verleihdienst mit Geräten,
 Kunden und Buchungen. Jede Übung hat einen Startpunkt als Git-Tag, eine
@@ -6,7 +18,7 @@ Aufgabenbeschreibung unter `uebungen/`, Tests, die zu Beginn rot sind, und
 eine Musterlösung als weiteres Git-Tag. Wer die Tests einer Übung grün hat,
 ist mit ihr fertig.
 
-## Voraussetzungen
+### Voraussetzungen
 
 | Baustein                              | Version                       |
 | ------------------------------------- | ----------------------------- |
@@ -20,7 +32,7 @@ Die Rolle ist Eigentümerin ihrer Datenbank und kein Superuser. Die Erweiterung
 `btree_gist` muss in der Datenbank anlegbar sein; in PostgreSQL 13 und höher
 ist sie als vertrauenswürdig markiert und von der Eigentümerin installierbar.
 
-## Einrichtung
+### Einrichtung
 
 Die Verbindungszeichenfolge kommt aus der Umgebungsvariablen
 `RENTAL_CONNECTION`. Zugangsdaten stehen nie im Repository.
@@ -35,7 +47,7 @@ Datenbank; Übung 0 beschreibt den Weg. Für Übung 6 kann zusätzlich
 `RENTAL_CONNECTION_RO` auf den Dienst `<cluster>-ro` zeigen; ohne diese
 Variable wird der betroffene Test übersprungen.
 
-## Ablauf
+### Ablauf
 
 ```sh
 git checkout -b meine-uebung-01 uebung-01-start
@@ -70,7 +82,7 @@ Startpunkt enthält, ein Schritt-für-Schritt-Teil je Datei und Methode, eine
 Tabelle mit jedem Test, dem, was er prüft, und der Bedeutung seiner
 Fehlermeldung, dazu Fallstricke und Bonus.
 
-## Aufbau
+### Aufbau
 
 ```text
 Rental/                  Anwendung: Datenbank, Geräte, Buchungen, Import, Modell, Betrieb
