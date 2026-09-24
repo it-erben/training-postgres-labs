@@ -61,10 +61,13 @@ Ausgangsstand wieder her.
    `created_at AT TIME ZONE 'UTC'` in einen Zeitpunkt und `betrag` mit
    `round(betrag::numeric, 2)` in einen Dezimalwert.
 3. Zeige, dass ein bloßer Cast `created_at::timestamptz` von der
-   Sitzungszeitzone abhängt. Berechne dazu je Zeile die Differenz
-   `created_at::timestamptz - created_at AT TIME ZONE 'UTC'`, einmal nach
-   `SET TimeZone = 'UTC';` und einmal nach `SET TimeZone = 'Europe/Berlin';`.
-   Setze die Zeitzone danach mit `RESET TimeZone;` zurück.
+   Sitzungszeitzone abhängt. Gib je Zeile `id`, `created_at`, den Cast
+   `created_at::timestamptz` als `cast_ergebnis`, den Zeitpunkt
+   `created_at AT TIME ZONE 'UTC'` als `zeitpunkt_utc` und die Differenz
+   beider als `abweichung` aus. Führe die Abfrage einmal nach
+   `SET TimeZone = 'UTC';` und einmal nach
+   `SET TimeZone = 'Europe/Berlin';` aus. Setze die Zeitzone danach mit
+   `RESET TimeZone;` zurück.
 4. Vergleiche die Summe von `ticket_neu.betrag` mit der Summe von
    `legacy_ticket.betrag`.
 
@@ -77,6 +80,7 @@ FROM tickets.ticket_neu ORDER BY legacy_id;
 SELECT sum(betrag) AS numeric_summe,
        (SELECT sum(betrag) FROM tickets.legacy_ticket) AS double_summe
 FROM tickets.ticket_neu;
+RESET TimeZone;
 ```
 
 Die erste Abfrage zeigt die sechs übernommenen Tickets. Die Zeitpunkte
@@ -103,8 +107,9 @@ Die zweite vergleicht die Summen:
 (1 row)
 ```
 
-Aufgabe 3 liefert unter `UTC` für jede Zeile die Abweichung `00:00:00`.
-Unter `Europe/Berlin` weicht der Cast ab:
+Aufgabe 3 liefert unter `UTC` für jede Zeile die Abweichung `00:00:00`;
+`cast_ergebnis` und `zeitpunkt_utc` sind dort gleich. Unter
+`Europe/Berlin` weicht der Cast ab:
 
 ```text
  id  |     created_at      |     cast_ergebnis      |     zeitpunkt_utc      | abweichung
@@ -124,13 +129,13 @@ Unter `Europe/Berlin` weicht der Cast ab:
 der die Wandzeit gilt. Das Ergebnis ist derselbe Zeitpunkt, egal unter
 welcher Sitzungszeitzone das `INSERT` läuft. Ein bloßer Cast nimmt dagegen
 die Sitzungszeitzone. Unter `Europe/Berlin` läge jedes Ticket eine oder zwei
-Stunden zu früh, je nachdem, ob am jeweiligen Tag Winter- oder Sommerzeit
-galt.
+Stunden zu früh, je nachdem, ob zum jeweiligen Zeitpunkt Winter- oder
+Sommerzeit galt.
 
 Ticket 104 zeigt eine Besonderheit: 02:30 Uhr gibt es am 30.03.2025 in
 Berlin nicht. PostgreSQL deutet die Wandzeit mit dem Offset vor der
 Umstellung und zeigt sie als 03:30:00+02 an. Die Abweichung beträgt deshalb
-eine Stunde, obwohl der Tag schon Sommerzeit hat.
+eine Stunde, obwohl der Zeitpunkt schon in der Sommerzeit liegt.
 
 `double precision` speichert binär, Werte wie 0.1 oder 0.2 sind dort nicht
 exakt darstellbar. Die Summe der sechs Beträge weicht deshalb in der
@@ -141,6 +146,6 @@ Nach `DROP TABLE` und erneutem Anlegen beginnt die Identity wieder bei 1.
 `is_identity = YES` und für `created_at` den Typ
 `timestamp with time zone`.
 
-`loesung.sql` entfernt zu Beginn `ticket_neu` und lässt sich deshalb
-mehrfach ausführen. `legacy_ticket` muss vorher aus dem Ausgangsstand
-angelegt sein.
+`loesung.sql` entfernt zu Beginn `ticket_neu`, legt `legacy_ticket` mit
+dem Block aus dem Ausgangsstand neu an und lässt sich deshalb mehrfach
+und ohne vorherige Schritte ausführen.
