@@ -13,7 +13,8 @@ wird.
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus: Aufgabe 4 und 5
-lösen absichtlich Fehler aus.
+lösen absichtlich Fehler aus. Für Aufgabe 1 brauchst du zwei Verbindungen A
+und B.
 
 Entferne zu Beginn die Übungsobjekte, damit sich die Übung wiederholen
 lässt. `ticket_metadata_gin` aus den Übungen 2 und 5 bleibt davon
@@ -29,20 +30,62 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
 ## Aufgaben
 
 1. Lege für `tickets.ticket.priority` eine Prüfregel auf den Wertebereich 1
-   bis 4 an, zuerst ungeprüft, dann validiert:
+   bis 4 an, zuerst ungeprüft, dann validiert. Führe `ADD CONSTRAINT` als
+   eigene, sofort bestätigte Anweisung aus, bevor du `VALIDATE CONSTRAINT`
+   in einer offenen Transaktion beobachtest: Läuft `ADD CONSTRAINT` in
+   derselben Transaktion wie `VALIDATE CONSTRAINT`, bleibt dessen kurze,
+   aber starke Sperre bis zum `COMMIT` bestehen und verfälscht die
+   Beobachtung. In A:
 
    ```sql
+   SET application_name = 'uebung_a';
    ALTER TABLE tickets.ticket
        ADD CONSTRAINT ticket_priority_check
        CHECK (priority BETWEEN 1 AND 4) NOT VALID;
+   BEGIN;
    ALTER TABLE tickets.ticket VALIDATE CONSTRAINT ticket_priority_check;
    ```
 
-   `NOT VALID` nimmt beim Anlegen nur eine kurze Tabellensperre und prüft
-   den Bestand nicht. Neue und geänderte Zeilen unterliegen der Regel ab
-   diesem Zeitpunkt bereits. `VALIDATE CONSTRAINT` liest anschließend den
-   vorhandenen Bestand in einem separaten Schritt mit einer schwächeren
-   Sperre, die parallele Lesezugriffe zulässt.
+   Die Transaktion bleibt offen. In B, während A noch offen ist:
+
+   ```sql
+   SELECT a.application_name, l.mode, l.granted
+   FROM pg_locks l
+   JOIN pg_stat_activity a ON a.pid = l.pid
+   WHERE a.application_name = 'uebung_a' AND l.relation = 'tickets.ticket'::regclass
+   ORDER BY l.mode;
+
+   UPDATE tickets.ticket SET priority = priority WHERE id = 1;
+   ```
+
+   Referenzlauf:
+
+   ```text
+    application_name |           mode           | granted 
+   ------------------+--------------------------+---------
+    uebung_a         | ShareUpdateExclusiveLock | t
+   (1 row)
+
+   UPDATE 1
+   ```
+
+   Schließe danach A ab: `COMMIT;`
+
+   `ADD CONSTRAINT ... NOT VALID` nimmt kurz `ACCESS EXCLUSIVE`, prüft den
+   Bestand aber nicht und gibt die Sperre mit dem Ende der Anweisung sofort
+   wieder frei. Neue und geänderte Zeilen unterliegen der Regel bereits ab
+   diesem Zeitpunkt. `VALIDATE CONSTRAINT` liest anschließend den
+   vorhandenen Bestand in einem separaten Schritt und hält dabei nur
+   `SHARE UPDATE EXCLUSIVE`, deutlich schwächer als die `ACCESS
+   EXCLUSIVE`-Sperre der vorangehenden Anweisung. `SHARE UPDATE EXCLUSIVE`
+   lässt gleichzeitiges Lesen und Schreiben zu: Das `UPDATE` in B läuft
+   durch, während A seine Transaktion noch hält. Blockiert wird nur eine
+   Sitzung, die ihrerseits DDL auf derselben Tabelle ausführen oder sie
+   `VACUUM`en möchte, etwa eine zweite `VALIDATE CONSTRAINT`, `CREATE INDEX
+   CONCURRENTLY` oder ein `ALTER TABLE ... ADD COLUMN`. Liefe `ADD
+   CONSTRAINT` in derselben, noch offenen Transaktion wie `VALIDATE
+   CONSTRAINT`, bliebe dessen `ACCESS EXCLUSIVE` bis zum `COMMIT` bestehen
+   und würde auch das `UPDATE` in B blockieren.
 
 2. Finde mit `pg_constraint` und `pg_index` alle Fremdschlüssel im Schema
    `tickets`, deren erste Spalte keinen Index anführt:

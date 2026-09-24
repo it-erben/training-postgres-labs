@@ -8,9 +8,35 @@ DROP TABLE IF EXISTS tickets.bereitschaft;
 ALTER TABLE ticket DROP CONSTRAINT IF EXISTS ticket_priority_check;
 DROP INDEX IF EXISTS comment_parent_idx;
 
--- Aufgabe 1: CHECK zuerst NOT VALID anlegen, danach validieren
+-- Aufgabe 1: CHECK zuerst NOT VALID anlegen (eigene, sofort bestätigte
+-- Anweisung), danach VALIDATE CONSTRAINT in einer offenen Transaktion
+-- beobachten. Zwei Verbindungen zeigen, dass VALIDATE CONSTRAINT nur
+-- SHARE UPDATE EXCLUSIVE hält (Ergebnis siehe AUFGABE.md:
+-- ShareUpdateExclusiveLock, granted = t, UPDATE 1 in B läuft trotz
+-- offener Transaktion in A durch). Liefe ADD CONSTRAINT in derselben
+-- Transaktion wie VALIDATE CONSTRAINT, bliebe dessen ACCESS EXCLUSIVE bis
+-- zum COMMIT bestehen und würde das UPDATE in B blockieren.
 ALTER TABLE ticket
     ADD CONSTRAINT ticket_priority_check CHECK (priority BETWEEN 1 AND 4) NOT VALID;
+--
+-- Verbindung A:
+-- SET application_name = 'uebung_a';
+-- BEGIN;
+-- ALTER TABLE tickets.ticket VALIDATE CONSTRAINT ticket_priority_check;
+--
+-- Verbindung B (während A offen ist):
+-- SELECT a.application_name, l.mode, l.granted
+-- FROM pg_locks l
+-- JOIN pg_stat_activity a ON a.pid = l.pid
+-- WHERE a.application_name = 'uebung_a' AND l.relation = 'tickets.ticket'::regclass
+-- ORDER BY l.mode;
+-- UPDATE tickets.ticket SET priority = priority WHERE id = 1;
+-- -- UPDATE 1, ohne zu warten: SHARE UPDATE EXCLUSIVE blockiert kein DML.
+--
+-- Verbindung A:
+-- COMMIT;
+--
+-- Der ausführbare Teil bildet denselben Effekt in einer Verbindung nach.
 ALTER TABLE ticket VALIDATE CONSTRAINT ticket_priority_check;
 
 -- Aufgabe 2: Fremdschlüssel ohne unterstützenden Index finden (Ergebnis

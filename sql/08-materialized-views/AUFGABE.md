@@ -145,6 +145,7 @@ DELETE FROM tickets.ticket WHERE metadata ? 'kurs_modul08';
 SELECT (SELECT sum(tickets_erstellt) FROM tickets.team_aktuell) AS view_summe,
        (SELECT sum(tickets_erstellt) FROM tickets.team_bericht) AS matview_summe;
 SELECT matviewname, ispopulated FROM pg_matviews WHERE schemaname = 'tickets';
+RESET TimeZone;
 ```
 
 Referenzlauf nach dem `REFRESH ... CONCURRENTLY` aus Aufgabe 4:
