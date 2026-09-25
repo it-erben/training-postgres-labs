@@ -1,8 +1,8 @@
 -- Legt das Schema tickets mit dem Datenbestand der SQL-Übungen an.
 -- Einmal vollständig im Query Tool ausführen (F5). Ein erneuter Lauf
 -- löscht das Schema tickets samt aller Übungsobjekte darin und baut es neu auf.
--- Dauer: auf dem Kurscluster rund drei Minuten. Andere Schemas bleiben
--- unberührt.
+-- Dauer: auf dem Kurscluster drei bis fünf Minuten. Andere Schemas
+-- bleiben unberührt.
 --
 -- Das alte Schema verschwindet in einer eigenen Transaktion. So gibt ein
 -- erneuter Lauf dessen Platz frei, bevor der neue Bestand entsteht.

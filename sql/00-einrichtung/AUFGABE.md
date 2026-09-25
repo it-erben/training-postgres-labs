@@ -76,8 +76,8 @@ ORDER BY ordinal_position;
 
 ## Hinweise
 
-Auf dem Kurscluster `trainer-pg` dauerte ein Lauf am 25.09.2026 rund drei
-Minuten (185 Sekunden), gegen eine lokale Testinstanz rund 41 Sekunden.
+Auf dem Kurscluster `trainer-pg` dauerten zwei Läufe am 25.09.2026 185 und
+275 Sekunden, gegen eine lokale Testinstanz rund 41 Sekunden.
 Das Schema belegt danach rund 420 MB. Ein erneuter Lauf von `setup.sql`
 löscht das Schema `tickets` samt aller Übungsobjekte darin und baut es neu
 auf. Mengen und Werte bleiben dabei gleich.
