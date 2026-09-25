@@ -74,10 +74,13 @@ Verbindungszeichenfolge:
 | `MaxAutoPrepare`       | `Max Auto Prepare`        | `20`                 | Höchstzahl automatisch vorbereiteter Anweisungen je Verbindung             |
 | `AutoPrepareMinUsages` | `Auto Prepare Min Usages` | `2`                  | Ab der zweiten Ausführung wird vorbereitet                                 |
 
-Nach diesem Schritt kompilieren die Tests weiterhin. Die beiden
-Katalog-Tests scheitern mit `NotImplementedException` aus dem Katalog. Die
-Pool- und Prepared-Tests werden dagegen schon grün, weil sie nur die
-DataSource prüfen.
+Nach diesem Schritt kompilieren die Tests weiterhin. Vier Tests rufen
+den Katalog auf und scheitern deshalb mit `NotImplementedException` aus
+dem Katalog: die beiden Suchtests,
+`DataSource_sets_application_name_rental` und
+`Connection_returns_to_pool_after_use`. Der Pool-Test
+und der Prepared-Test prüfen nur die DataSource und werden schon grün. Der
+Bonus-Test bleibt rot, bis `Options` gesetzt ist.
 
 ### 2. Suche nach Kategorie
 

@@ -212,8 +212,10 @@ Typangabe `Jsonb` bleibt nötig, sonst sendet Npgsql `text`.
 ## Fallstricke
 
 - Die Migration läuft in einer Transaktion. Ein Fehler in Zeile 20
-  verwirft auch die Zeilen davor. Die Fehlermeldung steht in der Ausgabe
-  der Fixture, nicht im einzelnen Test.
+  verwirft auch die Zeilen davor. Jeder Test der Klasse meldet dann
+  `Class fixture type ... threw in InitializeAsync`. Die Meldung von
+  PostgreSQL steht darunter als innere Ausnahme, etwa
+  `42601: syntax error at or near ","` mit der Position im Skript.
 - `MapEnum` ohne Schema (`"device_condition"`) sucht den Typ in `public` und
   findet ihn nicht.
 - `DateTime.Now` hat `Kind = Local`, `DateTime.UtcNow` hat `Kind = Utc`.

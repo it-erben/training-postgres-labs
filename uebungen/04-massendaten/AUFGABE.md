@@ -165,13 +165,13 @@ scheitert ebenso.
 
 ## Die Tests im Detail
 
-| Test                                     | Was er prüft                                                               | Wenn er rot ist                                                                       |
-| ---------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `Import_writes_200000_rows`              | Rückgabewert, `count(*)`, 2000 Zeilen mit `stocktake`, kleinster Zeitpunkt | `CompleteAsync` fehlt, Bemerkung leer statt NULL nicht unterschieden, Zeitzone falsch |
-| `Import_takes_at_most_five_seconds`      | Stoppuhr um den Aufruf                                                     | Einzel-INSERTs oder Batch; COPY braucht typisch unter einer Sekunde                   |
-| `Import_uses_COPY_and_streams_the_input` | Blockierender Stream, `COPY` in `pg_stat_activity` innerhalb von 15 s      | Eingabe wird vollständig gelesen, oder kein COPY                                      |
-| `Invalid_line_discards_the_whole_import` | `ImportException` mit `Line == 150000`, danach 0 Zeilen                    | Zeilen vor dem Fehler wurden bestätigt, oder Zeilennummer beginnt bei 0               |
-| `Import_leaves_no_connection_open`       | Nach Erfolg und Fehler keine Verbindung `active` oder in einer Transaktion | Importer, Transaktion oder Verbindung nicht disposed                                  |
+| Test                                     | Was er prüft                                                               | Wenn er rot ist                                                          |
+| ---------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `Import_writes_200000_rows`              | Rückgabewert, `count(*)`, 2000 Zeilen mit `stocktake`, kleinster Zeitpunkt | `CompleteAsync` fehlt, `stocktake` als NULL geschrieben, Zeitzone falsch |
+| `Import_takes_at_most_five_seconds`      | Stoppuhr um den Aufruf                                                     | Einzel-INSERTs oder Batch; COPY braucht typisch unter einer Sekunde      |
+| `Import_uses_COPY_and_streams_the_input` | Blockierender Stream, `COPY` in `pg_stat_activity` innerhalb von 15 s      | Eingabe wird vollständig gelesen, oder kein COPY                         |
+| `Invalid_line_discards_the_whole_import` | `ImportException` mit `Line == 150000`, danach 0 Zeilen                    | Zeilen vor dem Fehler wurden bestätigt, oder Zeilennummer beginnt bei 0  |
+| `Import_leaves_no_connection_open`       | Nach Erfolg und Fehler keine Verbindung `active` oder in einer Transaktion | Importer, Transaktion oder Verbindung nicht disposed                     |
 
 Die Zeitgrenze von fünf Sekunden ist für den Cluster des Kurses
 kalibriert. Auf einem langsamen Netz kann sie knapp werden; die anderen
@@ -180,9 +180,10 @@ vier Tests sagen dann, ob der Import selbst richtig ist.
 ## Fallstricke
 
 - Die Bonus-Grenze aus Übung 1 (`statement_timeout = 4s`) gilt für das
-  `COPY` als eine Anweisung. Mit dem blockierenden Stream des COPY-Tests
-  wartet das `COPY` auf Daten; PostgreSQL zählt Wartezeit auf den Client
-  nicht als Anweisungslaufzeit, deshalb bleibt der Test unter der Grenze.
+  `COPY` als eine Anweisung. Die Zeit, in der der Server auf Daten vom
+  Client wartet, zählt mit. Der COPY-Test gibt seinen blockierenden
+  Stream rund 50 ms nach dem Start des `COPY` frei, deshalb bleibt der
+  Import deutlich unter vier Sekunden.
 - `WriteAsync(string)` für eine leere Bemerkung speichert einen leeren
   Text statt NULL. Der erste Test zählt `remark = 'stocktake'` und
   bemerkt das nicht, die Tabelle ist trotzdem falsch befüllt.

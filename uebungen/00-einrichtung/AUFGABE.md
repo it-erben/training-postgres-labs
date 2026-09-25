@@ -39,12 +39,13 @@ Schlüssel `host`, `port`, `dbname`, `user` (oder `username`) und
 `password`.
 
 ```sh
-kubectl get secret <secret-name> -o go-template='{{range $k,$v := .data}}{{$k}}={{$v | base64decode}}{{"\n"}}{{end}}'
+kubectl -n training-postgres get secret <secret-name> -o go-template='{{range $k,$v := .data}}{{$k}}={{$v | base64decode}}{{"\n"}}{{end}}'
 ```
 
 Der Host ist der Dienst `<cluster>-rw`. Er zeigt immer auf den
-Primärserver; `-ro` und `-r` zeigen auf Replikate und sind für Übung 6
-vorgesehen.
+Primärserver. `<cluster>-ro` zeigt nur auf Replikate, `<cluster>-r` auf
+alle Instanzen einschließlich der Primärinstanz. Übung 6 liest über
+`<cluster>-ro`.
 
 ### 2. Verbindungszeichenfolge setzen
 

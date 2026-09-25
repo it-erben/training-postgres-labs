@@ -210,4 +210,4 @@ tot.
 `dotnet test --filter-trait Exercise=06 --filter-not-trait Stretch=true` fünf
 grüne Tests meldet und einer übersprungen ist, falls kein Replikat
 konfiguriert ist. Damit ist die Serie abgeschlossen; `dotnet test` ohne
-Filter zeigt alle 49 Tests.
+Filter zeigt alle 50 Tests.
