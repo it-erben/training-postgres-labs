@@ -27,6 +27,14 @@ Ohne `kubectl` findest du das Secret in Headlamp unter `Configuration`,
 
 1. Öffne das Query Tool auf dem RW-Server. Stelle `Auto commit` an und
    `Auto rollback on error` aus.
+
+   Für alle Übungen gilt: Ein Codeblock ist eine Ausführung. Kopiere den
+   Block ins Query Tool, markiere ihn vollständig und führe ihn mit F5 aus.
+   Erst danach folgt der nächste Block. Enthält ein Block mehrere
+   Anweisungen, schickt pgAdmin sie zusammen. Ohne eigenes `BEGIN` laufen
+   sie als eine Transaktion, und `Data Output` zeigt nur das Ergebnis der
+   letzten. Solche Blöcke sind so gewollt, der Text sagt es jeweils dazu.
+
 2. Prüfe die Verbindung:
 
    ```sql
@@ -94,5 +102,7 @@ diesen Schritt endet der nächste Lauf sofort mit `25P02`
 Bricht der Lauf mit `No space left on device` ab, ist das Volume deines
 Clusters voll. Sag der Kursleitung Bescheid.
 
-pgAdmin zeigt nur das letzte Ergebnis einer Skriptausführung an. Die
-Kontrollabfrage steht deshalb am Ende von `setup.sql`.
+`setup.sql` ist eine Datei und kein Codeblock. Sie steuert ihre
+Transaktionen mit `BEGIN` und `COMMIT` selbst. pgAdmin zeigt nur das
+letzte Ergebnis einer Ausführung an, die Kontrollabfrage steht deshalb am
+Ende der Datei.

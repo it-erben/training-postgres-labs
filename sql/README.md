@@ -11,17 +11,22 @@ im Schema `tickets`. `setup.sql` legt das Schema mit dem Datenbestand an;
 ein erneuter Lauf löscht `tickets` samt aller Übungsobjekte darin und baut
 es neu auf. Andere Schemas bleiben dabei unberührt.
 
-`Data Output` zeigt nur das Ergebnis der letzten Anweisung einer
-Ausführung. Die Abfragen unter "Ergebnis prüfen" laufen deshalb einzeln:
-Cursor in die Anweisung setzen und `Execute query` (Alt+F5, Mac Option+F5)
-ausführen. Ein `SET` aus einem Prüfblock gilt bis zum `RESET` oder zum
-Ende der Sitzung und wirkt auf alle folgenden Abfragen.
+Ein Codeblock ist eine Ausführung: Block vollständig markieren und mit F5
+ausführen, erst danach der nächste Block. Enthält ein Block mehrere
+Anweisungen, schickt pgAdmin sie zusammen. Ohne eigenes `BEGIN` laufen sie
+als eine Transaktion, und `Data Output` zeigt nur das Ergebnis der letzten.
+Solche Blöcke sind gewollt und im Text so gekennzeichnet. Ein `SET` gilt
+bis zum `RESET` oder zum Ende der Sitzung und wirkt auf alle folgenden
+Blöcke im selben Query Tool.
 
 ## Aufbau einer Übung
 
 Jede `AUFGABE.md` hat denselben Aufbau: Ziel, Ausgangsstand, nummerierte
 Aufgaben, Ergebnis prüfen mit echter Abfrage und tatsächlicher Ausgabe, dazu
-Hinweise. `loesung.sql` ist die Musterlösung und liegt im selben Verzeichnis.
+Hinweise. Übungen, die vor einem Schritt nach einer Vorhersage fragen,
+sammeln die Referenzausgaben mit Erklärung am Ende im Abschnitt
+"Auflösung". `loesung.sql` ist die Musterlösung und liegt im selben
+Verzeichnis. Jeder Abschnitt darin ist eine Ausführung.
 
 ## Übungen
 
