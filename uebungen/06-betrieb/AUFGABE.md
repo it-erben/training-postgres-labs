@@ -78,7 +78,7 @@ await tx.CommitAsync(ct);
 ```
 
 `pg_notify` ist die Funktionsform von `NOTIFY` und nimmt Kanal und Payload
-als Parameter, während `NOTIFY kanal, 'text'` beides fest im SQL-Text
+als Parameter, während `NOTIFY channel, 'payload'` beides fest im SQL-Text
 erwartet. Der Payload ist Text, deshalb die Buchungsnummer als
 Zeichenkette.
 
