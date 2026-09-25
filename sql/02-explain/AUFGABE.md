@@ -75,8 +75,9 @@ eines Zeitfensters von sieben Tagen.
 
    `ticket_offen_idx` ist ein Teilindex: Er enthält nur Zeilen, deren Status
    nicht `closed` ist, und passt damit zur Filterbedingung `status = 'open'`.
-   `ticket_metadata_gin` unterstützt den Enthaltenseinsoperator `?` auf
-   `jsonb`. `comment_created_brin` fasst `created_at` blockweise zusammen.
+   `ticket_metadata_gin` unterstützt den Existenzoperator `?` auf `jsonb`,
+   der prüft, ob ein Schlüssel auf oberster Ebene vorkommt.
+   `comment_created_brin` fasst `created_at` blockweise zusammen.
 
 3. Vergleiche die drei Pläne erneut mit denselben `EXPLAIN`-Abfragen wie in
    Aufgabe 1. `ticket_offen_idx` und `ticket_metadata_gin` erscheinen

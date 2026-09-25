@@ -71,9 +71,10 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    ```
 
    Mehrere hundert Tickets je Agent teilen sich denselben letzten
-   `closed_at`-Wert, weil `setup.sql` das Kursende als obere Schranke für
-   alle Abschlusszeiten verwendet. Mit `id DESC` als zweitem
-   Sortierkriterium ist die Rangfolge auch bei gleicher Zeit eindeutig.
+   `closed_at`-Wert. `setup.sql` begrenzt alle Abschlusszeiten nach oben
+   auf `seed_base_date()`, also 2026-08-21 00:00 UTC. Mit `id DESC` als
+   zweitem Sortierkriterium ist die Rangfolge auch bei gleicher Zeit
+   eindeutig.
 
 3. Erzeuge `tickets.ergebnis_3(comment_id, parent_id, tiefe, author)`
    rekursiv aus dem Kommentarbaum von Ticket 9. Die Wurzel erhält Tiefe 1:
@@ -96,9 +97,10 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    ```
 
    Der nicht rekursive Teil liefert die Wurzel des Baums, der rekursive Teil
-   hängt je Durchlauf die nächste Ebene an. `WHERE c.ticket_id = 9` in
-   beiden Teilen verhindert, dass ein Kommentar eines anderen Tickets über
-   eine zufällig gleiche `parent_id` einfließt.
+   hängt je Durchlauf die nächste Ebene an. Der Fremdschlüssel auf
+   `comment(id)` verlangt nicht, dass eine Antwort zum selben Ticket gehört
+   wie ihr Elternkommentar. `WHERE c.ticket_id = 9` im rekursiven Teil
+   schließt solche Antworten aus anderen Tickets aus.
 
 4. Erzeuge `tickets.ergebnis_4(ticket_id, subject, csat_score)` mit einem
    SQL/JSON-Pfadausdruck und lege dafür einen GIN-Index auf `metadata` an:
@@ -151,8 +153,10 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    Duplikate. Der `LATERAL`-Teil greift auf die Spalte `team.team` der
    äußeren Zeile zu. Mit einem gewöhnlichen `JOIN` geht das nicht, weil die
    Unterabfrage dann vor jedem Zugriff auf die äußere Zeile feststehen
-   müsste. Da `LIMIT 1` für jedes Team einzeln greift, entsteht genau eine
-   Ergebniszeile pro Team.
+   müsste. Da `LIMIT 1` für jedes Team einzeln greift, entsteht höchstens
+   eine Ergebniszeile pro Team. Ein Team ohne offenes Ticket fehlt ganz,
+   weil `CROSS JOIN LATERAL` bei leerer Unterabfrage keine Zeile liefert.
+   `LEFT JOIN LATERAL (...) jt ON true` behält es mit NULL-Werten.
 
 ## Ergebnis prüfen
 
@@ -196,7 +200,7 @@ Referenzlauf:
 ```
 
 Jedes der vier Teams verteilt sich auf 25 Monate, denn `created_at` deckt
-730 Tage vor dem Kursstichtag ab. `ergebnis_2` enthält 150 Zeilen, also 50
+730 Tage vor `seed_base_date()` ab. `ergebnis_2` enthält 150 Zeilen, also 50
 Agenten mit höchstens drei Zeilen. `max(rang) = 3` bestätigt, dass die
 Begrenzung greift. Der Kommentarbaum von Ticket 9 hat eine Wurzel, zwei
 Kommentare auf Tiefe 2 und einen auf Tiefe 3.
@@ -212,11 +216,11 @@ gibt es `rang` noch nicht. Deshalb filtert erst die äußere Abfrage auf
 `rang <= 3`. Eine `WHERE`-Bedingung auf ein Fensterfunktionsergebnis
 braucht immer eine äußere Abfrage oder eine CTE.
 
-Eine rekursive CTE ohne Filter auf `ticket_id` innerhalb des rekursiven
-Teils würde bei einer `id`-Kollision zwischen `parent_id`-Werten
-verschiedener Tickets falsche Zweige aufnehmen. In diesem Datenbestand ist
-`comment.id` global eindeutig. Die zusätzliche Bedingung bleibt trotzdem
-die verlässlichere Formulierung.
+`setup.sql` hängt jede Antwort an einen Kommentar desselben Tickets. Im
+Datenbestand ändert der Filter auf `ticket_id` im rekursiven Teil das
+Ergebnis deshalb nicht. Er hält die Abfrage richtig, wenn später eine
+Antwort auf einen Kommentar eines anderen Tickets verweist; das Schema
+verbietet das nicht.
 
 `loesung.sql` entfernt zu Beginn `tickets.ergebnis_1` bis `ergebnis_4` und
 lässt sich deshalb mehrfach ausführen. `ticket_metadata_gin` bleibt

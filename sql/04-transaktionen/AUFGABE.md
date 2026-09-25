@@ -269,9 +269,10 @@ Referenzlauf nach den Aufgaben 1 bis 4 in der beschriebenen Reihenfolge:
 Vier protokollierte Zuweisungen für Ticket 1 stammen aus Aufgabe 1 (A und
 B, beide vermeintlich erfolgreich), Aufgabe 2 (nur A) und Aufgabe 4 (nur
 A). Der tatsächliche Endstand von Ticket 1 zeigt trotzdem nur eine
-einzige, zuletzt bestätigte Zuweisung. Die Zahlen ändern sich, wenn du
-zusätzlich den Bonus ausführst, weil dieser keine weiteren Zeilen in
-`tickets.zuweisung_log` einträgt.
+einzige, zuletzt bestätigte Zuweisung. Der Bonus trägt nichts in
+`tickets.zuweisung_log` ein, die erste Abfrage bleibt nach ihm also gleich.
+Die zweite zeigt dann für Ticket 1 und 2 NULL in `agent_id`, weil der
+Bonus beide Zuweisungen zurücksetzt.
 
 ## Hinweise
 

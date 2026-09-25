@@ -2,11 +2,11 @@
 
 ## Ziel
 
-Du validierst eine nachträglich angelegte Prüfregel ohne Tabellensperre,
-findest einen Fremdschlüssel ohne unterstützenden Index und baust mit einem
-Exclusion Constraint einen Bereitschaftsplan ohne überlappende Zeiträume.
-Zum Schluss beobachtest du, wann ein aufschiebbarer Fremdschlüssel geprüft
-wird.
+Du validierst eine nachträglich angelegte Prüfregel, ohne Schreibzugriffe
+zu blockieren. Danach findest du einen Fremdschlüssel ohne unterstützenden
+Index und baust mit einem Exclusion Constraint einen Bereitschaftsplan ohne
+überlappende Zeiträume. Zum Schluss beobachtest du, wann ein aufschiebbarer
+Fremdschlüssel geprüft wird.
 
 ## Ausgangsstand
 
@@ -80,9 +80,10 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    `ACCESS EXCLUSIVE`-Sperre der Anweisung davor und lässt gleichzeitiges
    Lesen und Schreiben zu. Das `UPDATE` in B läuft also durch, während A
    seine Transaktion noch hält. Blockiert wird nur eine Sitzung, die
-   ihrerseits DDL auf derselben Tabelle ausführen oder sie `VACUUM`en
-   möchte, etwa eine zweite `VALIDATE CONSTRAINT`, `CREATE INDEX
-   CONCURRENTLY` oder ein `ALTER TABLE ... ADD COLUMN`. Liefe
+   ihrerseits DDL auf derselben Tabelle ausführen oder sie mit `VACUUM`
+   oder `ANALYZE` bearbeiten möchte, etwa eine zweite
+   `VALIDATE CONSTRAINT`, `CREATE INDEX CONCURRENTLY`, ein `ANALYZE` oder
+   ein `ALTER TABLE ... ADD COLUMN`. Liefe
    `ADD CONSTRAINT` in derselben, noch offenen Transaktion wie
    `VALIDATE CONSTRAINT`, bliebe seine `ACCESS EXCLUSIVE`-Sperre bis zum
    `COMMIT` bestehen und würde auch das `UPDATE` in B blockieren.
@@ -213,9 +214,12 @@ Referenzlauf:
 
 `convalidated = t` gilt für beide Regeln. `ticket_priority_check` hat
 Aufgabe 1 ausdrücklich validiert. `bereitschaft_..._excl` entstand mit
-`CREATE TABLE`, und ein dort angelegter Constraint beginnt nie im Zustand
-`NOT VALID`. Diesen Zwischenzustand kennt nur ein Constraint, der
-nachträglich per `ALTER TABLE ... ADD CONSTRAINT` dazukommt.
+`CREATE TABLE`, und PostgreSQL prüft einen dort angelegten Constraint
+sofort. Den Zwischenzustand `NOT VALID` erreicht ein Constraint nur
+nachträglich per `ALTER TABLE ... ADD CONSTRAINT`. Eine Ausnahme gibt es
+seit PostgreSQL 18: Ein `CHECK` oder Fremdschlüssel mit `NOT ENFORCED`
+steht auch nach `CREATE TABLE` auf `convalidated = f`, weil PostgreSQL ihn
+gar nicht prüft.
 
 ## Hinweise
 

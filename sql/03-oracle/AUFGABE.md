@@ -188,11 +188,14 @@ Referenzlauf:
 
 ## Hinweise
 
-`count(spalte)` zählt nur Werte, die nicht NULL sind. Aufgabe 1 zeigt
-denselben Mechanismus auf einer eigens angelegten Tabelle, weil `subject` in
-`tickets.ticket` `NOT NULL` ist und dort keine NULL-Zeile eingefügt werden
-kann. In einer Oracle-`VARCHAR2`-Spalte ist die leere Zeichenkette selbst
-NULL. Das betrifft jede Migration mit Textspalten aus Oracle.
+Aufgabe 1 zählt mit `count(*) FILTER (WHERE ...)`, also Zeilen, für die
+die Bedingung zutrifft. `wert = ''` ist für die NULL-Zeile nicht wahr,
+deshalb zählt nur `wert IS NULL` sie mit. `count(wert)` ergäbe 3, weil
+`count(spalte)` NULL-Werte überspringt. Die Tabelle ist eigens angelegt,
+weil `subject` in `tickets.ticket` `NOT NULL` ist und dort keine NULL-Zeile
+eingefügt werden kann. In einer Oracle-`VARCHAR2`-Spalte ist die leere
+Zeichenkette selbst NULL. Das betrifft jede Migration mit Textspalten aus
+Oracle.
 
 `'a' || NULL` ergibt NULL. Ist ein Argument von `||` NULL, ist die gesamte
 Verkettung unbekannt. `concat('a', NULL)` ignoriert das NULL-Argument und

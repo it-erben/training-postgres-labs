@@ -125,9 +125,10 @@ DELETE FROM tickets.ticket WHERE metadata ? 'kurs_modul08';
 
    Diese Anweisung läuft durch, obwohl A seine Transaktion weiterhin offen
    hält. `CONCURRENTLY` nimmt nur eine `EXCLUSIVE`-Sperre, die lesende
-   Zugriffe zulässt. Das neue Ergebnis schreibt es über einen Vergleich mit
-   dem alten Bestand statt über einen kompletten Neuaufbau. Schließe danach
-   A ab:
+   Zugriffe zulässt. Auch mit `CONCURRENTLY` rechnet PostgreSQL die
+   gesamte Abfrage neu. Das Ergebnis vergleicht es mit dem alten Bestand
+   und ändert in der Materialized View nur die abweichenden Zeilen.
+   Schließe danach A ab:
 
    ```sql
    COMMIT;

@@ -43,8 +43,9 @@ FROM tickets.lesetest;
 -- SELECT pg_last_wal_replay_lsn() AS eingespielt_bis,
 --        pg_last_xact_replay_timestamp() AS letzte_transaktion;
 -- -- letzte_transaktion ist der Commit-Zeitpunkt auf der Primärinstanz,
--- -- wenige Millisekunden nach geschrieben_um. Die Zeile ist sichtbar,
--- -- sobald eingespielt_bis die wal_position_rw erreicht hat.
+-- -- kurz nach geschrieben_um; im Referenzlauf lag weniger als eine
+-- -- Millisekunde dazwischen. Die Zeile ist sichtbar, sobald
+-- -- eingespielt_bis die wal_position_rw erreicht hat.
 --
 -- RO-Server, Schreibversuch
 -- INSERT INTO tickets.lesetest (notiz) VALUES ('geschrieben auf RO');
