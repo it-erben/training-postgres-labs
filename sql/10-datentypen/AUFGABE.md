@@ -13,7 +13,8 @@ Danach zeigst du, warum ein bloßer Cast von `timestamp` nach
 
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
-Tool mit `Auto commit` an und `Auto rollback on error` aus.
+Tool mit `Auto commit` an und `Auto rollback on error` aus. Jeder Codeblock
+ist eine Ausführung, wie in Übung 0 beschrieben.
 
 Lege die Altbestandstabelle `tickets.legacy_ticket` an. `closed` ist 1 für
 ein geschlossenes und 0 für ein offenes Ticket. `created_at` enthält die
@@ -39,8 +40,8 @@ INSERT INTO tickets.legacy_ticket VALUES
     (106, 'Adresse ändern',        0, '2026-01-15 08:00:00',    4.6);
 ```
 
-Der Block lässt sich jederzeit erneut ausführen und stellt den
-Ausgangsstand wieder her.
+Der Block läuft als eine Ausführung. Er lässt sich jederzeit erneut
+ausführen und stellt den Ausgangsstand wieder her.
 
 ## Aufgaben
 
@@ -73,18 +74,22 @@ Ausgangsstand wieder her.
 
 ## Ergebnis prüfen
 
+Setze die Sitzungszeitzone zuerst auf UTC. Die Prüfung zeigt die Zeitpunkte
+dann mit `+00`:
+
 ```sql
 SET TimeZone = 'UTC';
-SELECT legacy_id, is_closed, created_at, amount
-FROM tickets.ticket_new ORDER BY legacy_id;
-SELECT sum(amount) AS numeric_sum,
-       (SELECT sum(amount) FROM tickets.legacy_ticket) AS double_sum
-FROM tickets.ticket_new;
-RESET TimeZone;
 ```
 
-Die erste Abfrage zeigt die sechs übernommenen Tickets. Die Zeitpunkte
-tragen `+00` und nennen dieselbe Uhrzeit wie `legacy_ticket.created_at`:
+Die sechs übernommenen Tickets:
+
+```sql
+SELECT legacy_id, is_closed, created_at, amount
+FROM tickets.ticket_new ORDER BY legacy_id;
+```
+
+Die Zeitpunkte tragen `+00` und nennen dieselbe Uhrzeit wie
+`legacy_ticket.created_at`:
 
 ```text
  legacy_id | is_closed |       created_at       | amount
@@ -98,13 +103,25 @@ tragen `+00` und nennen dieselbe Uhrzeit wie `legacy_ticket.created_at`:
 (6 rows)
 ```
 
-Die zweite vergleicht die Summen:
+Die Summen in beiden Typen:
+
+```sql
+SELECT sum(amount) AS numeric_sum,
+       (SELECT sum(amount) FROM tickets.legacy_ticket) AS double_sum
+FROM tickets.ticket_new;
+```
 
 ```text
  numeric_sum |     double_sum
 -------------+--------------------
      1275.19 | 1275.1899999999998
 (1 row)
+```
+
+Setze die Zeitzone danach zurück:
+
+```sql
+RESET TimeZone;
 ```
 
 Aufgabe 3 liefert unter `UTC` für jede Zeile die Abweichung `00:00:00`;
