@@ -14,10 +14,12 @@ Du hast eine eigene Servergruppe im pgAdmin mit einem RW-Server, Datenbank
 Schlüssel `password`:
 
 ```bash
-kubectl get secret <cluster>-app -o jsonpath='{.data.password}' | base64 -d
+kubectl -n training-postgres get secret <cluster>-app \
+  -o jsonpath='{.data.password}' | base64 -d
 ```
 
-Alternativ findest du das Secret in Headlamp unter Secrets.
+Ohne `kubectl` findest du das Secret in Headlamp unter `Configuration`,
+`Secrets`, `<cluster>-app`.
 
 ## Aufgaben
 

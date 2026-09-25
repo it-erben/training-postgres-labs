@@ -281,9 +281,9 @@ gelesenen Ausgangszustand für ihre jeweilige Entscheidung verwenden, ohne
 voneinander zu wissen.
 
 `SELECT ... FOR UPDATE` sperrt die gelesene Zeile bis zum Ende der eigenen
-Transaktion. Eine wartende zweite Sitzung erhält nach der Freigabe nicht
-den ursprünglich gelesenen, sondern den inzwischen aktuellen Wert der
-Zeile: Genau das macht die Prüfung in Aufgabe 2 zuverlässig.
+Transaktion. Eine wartende zweite Sitzung erhält nach der Freigabe den
+inzwischen aktuellen Wert der Zeile. Darauf beruht die Prüfung in
+Aufgabe 2.
 
 Das bedingte `UPDATE` aus Aufgabe 3 braucht keine vorherige Sperre. Jedes
 `UPDATE` sperrt seine Zielzeile bereits selbst; eine zweite Sitzung mit

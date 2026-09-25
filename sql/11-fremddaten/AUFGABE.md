@@ -142,7 +142,30 @@ Fehlt das `GRANT USAGE`, scheitert schon `CREATE SERVER` mit `42501` und
 
 `sslmode 'verify-full'` prüft das Zertifikat der Gegenseite und ihren
 Namen. Die Verbindung baut der Datenbankserver auf, nicht pgAdmin. Das
-Wurzelzertifikat muss deshalb auf dem Datenbankserver liegen.
+Wurzelzertifikat muss deshalb auf dem Datenbankserver liegen. Ohne weitere
+Angabe sucht libpq es unter `~/.postgresql/root.crt` im Heimatverzeichnis
+des Betriebssystembenutzers, unter dem der Server läuft. Liegt die CA an
+einem anderen Pfad im Datenbank-Pod, nennt ihn die Serveroption
+`sslrootcert`; welcher Pfad das im Kurs ist, sagt dir die Kursleitung:
+
+```sql
+ALTER SERVER kurs_loopback OPTIONS (ADD sslrootcert '<ca-pfad>');
+```
+
+Fehlt die Datei, scheitert der erste Zugriff über `fern`. Referenzlauf
+lokal mit einem Server `tls_probe` gegen eine Gegenseite mit TLS, ohne
+CA-Datei auf dem Datenbankserver:
+
+```text
+ERROR:  08001: could not connect to server "tls_probe"
+```
+
+Die Zeile `DETAIL` darunter nennt nach Adresse und Port den gesuchten Pfad:
+`root certificate file "/var/lib/postgresql/.postgresql/root.crt" does not exist`.
+Es folgt `Either provide the file, use the system's trusted roots with
+sslrootcert=system, or change sslmode to disable server certificate
+verification.` Ohne TLS auf der Gegenseite lautet die Meldung
+`server does not support SSL, but SSL was required`.
 
 `postgres_fdw` überträgt nur Bedingungen mit eingebauten Operatoren und
 Funktionen, die `IMMUTABLE` sind. `now()` ist `STABLE` und bleibt deshalb

@@ -22,6 +22,12 @@ ORDER BY n.name;
 
 -- Aufgabe 2: Server, User Mapping, Schema und Import
 -- Die Gegenseite ist dieselbe Datenbank app über den Dienst <cluster>-rw.
+-- verify-full braucht die CA auf dem Datenbankserver. Ohne weitere Angabe
+-- sucht libpq ~/.postgresql/root.crt des Betriebssystembenutzers, unter
+-- dem der Server läuft. Liegt die CA an einem anderen Pfad im
+-- Datenbank-Pod, kommt sslrootcert '<ca-pfad>' in die OPTIONS. Fehlt die
+-- Datei, meldet der erste Zugriff über fern 08001 mit root certificate
+-- file "..." does not exist.
 CREATE SERVER kurs_loopback
     FOREIGN DATA WRAPPER postgres_fdw
     OPTIONS (host '<cluster>-rw', dbname 'app', sslmode 'verify-full');

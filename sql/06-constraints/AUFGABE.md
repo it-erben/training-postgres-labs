@@ -187,10 +187,12 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
 ## Ergebnis prüfen
 
 ```sql
+SET TimeZone = 'UTC';
 SELECT conname, contype, convalidated FROM pg_constraint
 WHERE conrelid IN ('tickets.ticket'::regclass, 'tickets.bereitschaft'::regclass)
   AND contype IN ('c', 'x') ORDER BY conname;
 SELECT agent_id, zeitraum FROM tickets.bereitschaft ORDER BY agent_id, lower(zeitraum);
+RESET TimeZone;
 ```
 
 Referenzlauf:

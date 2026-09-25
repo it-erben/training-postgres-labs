@@ -98,6 +98,11 @@ auslösen darfst, sagt dir die Kursleitung.
        -L role -w
      ```
 
+     Ohne `kubectl` zeigt Headlamp die Rollen unter `Workloads`, `Pods`,
+     Pod öffnen, Label `cnpg.io/instanceRole` mit `primary` oder
+     `replica`. Welcher Weg in deiner Umgebung offen ist, sagt dir die
+     Kursleitung. Das Umschalten selbst braucht `kubectl cnpg promote`.
+
      Führe die Abfrage danach in beiden Query Tools erneut aus, ohne neu
      zu verbinden. Notiere die Meldung im RW-Tab. Verbinde neu und
      vergleiche `server_adresse` und `replikat` mit den ersten Werten.
