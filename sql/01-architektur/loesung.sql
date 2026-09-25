@@ -14,7 +14,9 @@ CREATE TABLE tickets.measurement (
 
 -- Abschnitt 2 (Aufgabe 1): Eigene Sitzung und eine zweite Verbindung in
 -- pg_stat_activity finden. Zur Aufgabe gehört eine zweite Verbindung mit
--- eigenem application_name. Dieses Skript allein zeigt nur die eigene Zeile.
+-- eigenem application_name. Dieses Skript allein zeigt nur die eigene Zeile,
+-- im pgAdmin dazu die Verbindung des Objektbaums.
+SET application_name = 'exercise-a';
 SELECT application_name, backend_type, state
 FROM pg_stat_activity
 WHERE datname = current_database()

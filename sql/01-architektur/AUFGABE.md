@@ -27,9 +27,10 @@ CREATE TABLE tickets.measurement (
 
 ## Aufgaben
 
-1. Öffne ein zweites Query Tool und setze dort einen eigenen Namen, etwa
-   `SET application_name = 'exercise-b';`. Suche beide Sitzungen in
-   `pg_stat_activity`:
+1. Setze in deinem Query Tool `SET application_name = 'exercise-a';`.
+   Öffne ein zweites Query Tool und setze dort
+   `SET application_name = 'exercise-b';`. Suche beide Sitzungen im ersten
+   Query Tool in `pg_stat_activity`:
 
    ```sql
    SELECT application_name, backend_type, state
@@ -48,6 +49,11 @@ CREATE TABLE tickets.measurement (
     exercise-b       | client backend | idle
    (2 rows)
    ```
+
+   Im pgAdmin stehen weitere eigene Sitzungen in der Liste: der Objektbaum
+   als `pgAdmin 4 - DB:app` und jedes Query Tool ohne eigenen Namen als
+   `pgAdmin 4 - CONN:` mit einer Zahl. Ist die Autovervollständigung
+   eingeschaltet, hält ein Query Tool eine zweite Verbindung.
 
 2. Lies `xmin` und `ctid` von Ticket 1, aktualisiere die Zeile und lies
    beide Werte erneut. Führe die drei Anweisungen nacheinander einzeln aus
