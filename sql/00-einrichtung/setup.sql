@@ -6,7 +6,12 @@
 --
 -- Das alte Schema verschwindet in einer eigenen Transaktion. So gibt ein
 -- erneuter Lauf dessen Platz frei, bevor der neue Bestand entsteht.
+--
+-- Zeitpunkt und WAL-Position zu Beginn liegen bis zum Ende des Laufs in
+-- der Sitzung; die Tabelle setup_run entsteht erst mit dem neuen Schema.
 BEGIN;
+SELECT set_config('setup.started_at', clock_timestamp()::text, false),
+       set_config('setup.start_lsn', pg_current_wal_lsn()::text, false);
 SET LOCAL lock_timeout = '5s';
 DROP SCHEMA IF EXISTS tickets CASCADE;
 COMMIT;
@@ -238,6 +243,19 @@ ALTER TABLE comment ADD PRIMARY KEY (id),
 ANALYZE agent;
 ANALYZE ticket;
 ANALYZE comment;
+
+-- Start und Ende dieses Laufs für soundcheck.sql. end_lsn fällt vor das
+-- COMMIT und umfasst damit den gesamten Aufbau.
+CREATE TABLE setup_run (
+    started_at timestamptz not null,
+    finished_at timestamptz not null,
+    start_lsn pg_lsn not null,
+    end_lsn pg_lsn not null
+);
+INSERT INTO setup_run (started_at, finished_at, start_lsn, end_lsn)
+SELECT current_setting('setup.started_at')::timestamptz, clock_timestamp(),
+       current_setting('setup.start_lsn')::pg_lsn, pg_current_wal_lsn();
+ANALYZE setup_run;
 COMMIT;
 
 -- Kontrolle: 50 | 800000 | 2000678
