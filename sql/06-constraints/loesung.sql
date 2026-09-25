@@ -53,7 +53,10 @@ CREATE TABLE on_call (
     EXCLUDE USING gist (agent_id WITH =, time_range WITH &&)
 );
 
--- Aufgabe 4: zwei angrenzende Zeiträume (erlaubt), ein überlappender (23P01)
+-- Aufgabe 4: zwei angrenzende Zeiträume (erlaubt). Der überlappende
+-- Zeitraum scheitert mit 23P01 und steht deshalb nur als Kommentar da.
+-- Im selben Abfragestring rollte sein Fehler auch die beiden erlaubten
+-- Zeilen zurück.
 INSERT INTO on_call (agent_id, time_range) VALUES
     (1, tstzrange('2026-09-01 00:00+00', '2026-09-08 00:00+00', '[)')),
     (1, tstzrange('2026-09-08 00:00+00', '2026-09-15 00:00+00', '[)'));

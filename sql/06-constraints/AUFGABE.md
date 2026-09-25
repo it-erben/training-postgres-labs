@@ -144,24 +144,44 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    GiST-Operatorklasse für `=` auf `bigint`. `tstzrange` bringt seine
    GiST-Unterstützung selbst mit.
 
-4. Füge zwei angrenzende Bereitschaftszeiten für Agent 1 ein und danach
-   eine Zeit, die beide überlappt:
+4. Füge zwei angrenzende Bereitschaftszeiten für Agent 1 ein:
 
    ```sql
    INSERT INTO tickets.on_call (agent_id, time_range) VALUES
        (1, tstzrange('2026-09-01 00:00+00', '2026-09-08 00:00+00', '[)')),
        (1, tstzrange('2026-09-08 00:00+00', '2026-09-15 00:00+00', '[)'));
+   ```
 
+   Referenzlauf:
+
+   ```text
+   INSERT 0 2
+   ```
+
+   Die beiden Zeiten teilen keinen gemeinsamen Zeitpunkt: Das Intervall
+   `[)` schließt die obere Grenze aus, `2026-09-08 00:00+00` gehört nur
+   zum zweiten Zeitraum. Deshalb läuft das `INSERT` durch.
+
+   Füge danach eine Zeit ein, die beide überlappt. Markiere diese
+   Anweisung allein und führe sie getrennt vom ersten Block aus. pgAdmin
+   schickt eine Markierung mit mehreren Anweisungen als eine Transaktion.
+   Stünden beide `INSERT`-Anweisungen darin, rollte der Fehler auch die
+   beiden erlaubten Zeilen zurück, und `tickets.on_call` bliebe leer.
+
+   ```sql
    INSERT INTO tickets.on_call (agent_id, time_range)
    VALUES (1, tstzrange('2026-09-05 00:00+00', '2026-09-10 00:00+00', '[)'));
    ```
 
-   Die ersten beiden Zeiten teilen keinen gemeinsamen Zeitpunkt: Das
-   Intervall `[)` schließt die obere Grenze aus, `2026-09-08 00:00+00`
-   gehört nur zum zweiten Zeitraum. Beide `INSERT`-Anweisungen laufen
-   durch. Die dritte Zeile überlappt beide vorhandenen Zeiträume und
-   scheitert mit SQLSTATE `23P01`
-   (`conflicting key value violates exclusion constraint`).
+   Referenzlauf:
+
+   ```text
+   ERROR:  23P01: conflicting key value violates exclusion constraint "on_call_agent_id_time_range_excl"
+   ```
+
+   Die dritte Zeile überlappt beide vorhandenen Zeiträume und scheitert
+   mit SQLSTATE `23P01`. Die Zeile `DETAIL` darunter nennt den neuen
+   Schlüssel und den ersten vorhandenen Zeitraum, mit dem er kollidiert.
 
 5. Lege eine Tabelle mit einem aufschiebbaren Fremdschlüssel an und
    beobachte, wann PostgreSQL ihn prüft:
