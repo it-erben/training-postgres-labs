@@ -20,7 +20,10 @@ eines Zeitfensters von sieben Tagen.
 ## Aufgaben
 
 1. Führe für jeden der drei Zugriffe `EXPLAIN (ANALYZE, BUFFERS)` aus und
-   notiere Planknoten, geschätzte und tatsächliche Zeilen:
+   notiere Planknoten, geschätzte und tatsächliche Zeilen. Führe zuerst die
+   beiden `SET` aus, danach jedes `EXPLAIN` einzeln (Cursor in die
+   Anweisung, `Execute query`). Als ein Block zeigt `Data Output` nur den
+   letzten Plan:
 
    ```sql
    SET search_path = tickets;
@@ -88,11 +91,13 @@ eines Zeitfensters von sieben Tagen.
    erklärt, warum das so ist.
 
 4. Vergleiche die Größe der drei neuen Indizes mit der Größe der jeweiligen
-   Tabelle:
+   Tabelle. Führe beide Abfragen einzeln aus:
 
    ```sql
    SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
-   FROM pg_stat_user_indexes WHERE schemaname = 'tickets' ORDER BY indexrelname;
+   FROM pg_stat_user_indexes
+   WHERE schemaname = 'tickets' AND relname IN ('agent', 'ticket', 'comment')
+   ORDER BY indexrelname;
    SELECT pg_size_pretty(pg_relation_size('tickets.ticket')) AS ticket_table,
           pg_size_pretty(pg_relation_size('tickets.comment')) AS comment_table;
    ```
@@ -120,7 +125,9 @@ EXPLAIN (COSTS OFF) SELECT id FROM ticket WHERE metadata ? 'escalated';
 EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
 WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
 SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
-FROM pg_stat_user_indexes WHERE schemaname = 'tickets' ORDER BY indexrelname;
+FROM pg_stat_user_indexes
+WHERE schemaname = 'tickets' AND relname IN ('agent', 'ticket', 'comment')
+ORDER BY indexrelname;
 RESET TimeZone;
 ```
 

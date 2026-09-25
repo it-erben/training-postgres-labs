@@ -38,7 +38,9 @@ WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
 
 -- Aufgabe 4: Indexgrößen gegenüber der Tabelle
 SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
-FROM pg_stat_user_indexes WHERE schemaname = 'tickets' ORDER BY indexrelname;
+FROM pg_stat_user_indexes
+WHERE schemaname = 'tickets' AND relname IN ('agent', 'ticket', 'comment')
+ORDER BY indexrelname;
 SELECT pg_size_pretty(pg_relation_size('tickets.ticket')) AS ticket_table,
        pg_size_pretty(pg_relation_size('tickets.comment')) AS comment_table;
 
