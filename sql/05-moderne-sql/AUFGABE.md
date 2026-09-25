@@ -11,16 +11,15 @@ als eigene Tabelle unter `tickets`. Zum Schluss liest du mit
 
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
-Tool mit `Auto commit` an und `Auto rollback on error` aus.
+Tool mit `Auto commit` an und `Auto rollback on error` aus. Jeder Codeblock
+ist eine Ausführung, wie in Übung 0 beschrieben.
 
 Entferne zu Beginn die vier Ergebnistabellen, damit sich die Übung
 wiederholen lässt:
 
 ```sql
-DROP TABLE IF EXISTS tickets.result_1;
-DROP TABLE IF EXISTS tickets.result_2;
-DROP TABLE IF EXISTS tickets.result_3;
-DROP TABLE IF EXISTS tickets.result_4;
+DROP TABLE IF EXISTS tickets.result_1, tickets.result_2,
+                     tickets.result_3, tickets.result_4;
 ```
 
 ## Aufgaben
@@ -30,15 +29,15 @@ DROP TABLE IF EXISTS tickets.result_4;
    kumulieren.
 
    ```sql
-   SET TimeZone = 'UTC';
    CREATE TABLE tickets.result_1 AS
    WITH monthly_counts AS (
        SELECT a.team,
-              date_trunc('month', t.created_at)::date AS month,
+              date_trunc('month', t.created_at AT TIME ZONE 'UTC')::date
+                  AS month,
               count(*) AS tickets_created
        FROM tickets.ticket t
        JOIN tickets.agent a ON a.id = t.agent_id
-       GROUP BY a.team, date_trunc('month', t.created_at)
+       GROUP BY a.team, date_trunc('month', t.created_at AT TIME ZONE 'UTC')
    )
    SELECT team, month, tickets_created,
           sum(tickets_created) OVER (PARTITION BY team ORDER BY month) AS running_total
@@ -47,6 +46,8 @@ DROP TABLE IF EXISTS tickets.result_4;
 
    Der innere `JOIN` verbindet nur zugeordnete Tickets mit ihrem Agenten und
    damit ihrem Team. Ein Ticket ohne `agent_id` fließt nicht ein.
+   `created_at AT TIME ZONE 'UTC'` liefert die Uhrzeit in UTC, damit liegen
+   die Monatsgrenzen unabhängig von der Sitzungszeitzone fest.
    `date_trunc('month', ...)` rundet den Zeitpunkt auf den Monatsanfang. Die
    Fensterfunktion `sum() OVER (PARTITION BY team ORDER BY month)` läuft
    ohne eigene Rahmenklausel und summiert deshalb per Voreinstellung von der
@@ -103,7 +104,8 @@ DROP TABLE IF EXISTS tickets.result_4;
    schließt solche Antworten aus anderen Tickets aus.
 
 4. Erzeuge `tickets.result_4(ticket_id, subject, csat_score)` mit einem
-   SQL/JSON-Pfadausdruck und lege dafür einen GIN-Index auf `metadata` an:
+   SQL/JSON-Pfadausdruck und lege dafür einen GIN-Index auf `metadata` an.
+   Der Block läuft als eine Ausführung:
 
    ```sql
    CREATE INDEX IF NOT EXISTS ticket_metadata_gin
@@ -137,7 +139,8 @@ DROP TABLE IF EXISTS tickets.result_4;
    ORDER BY team.team;
    ```
 
-   Referenzlauf:
+   Referenzlauf. `created_at` erscheint in der Zeitzone der Sitzung, auf dem
+   Kurscluster UTC:
 
    ```text
        team    | ticket_id |          created_at           
@@ -160,40 +163,59 @@ DROP TABLE IF EXISTS tickets.result_4;
 
 ## Ergebnis prüfen
 
+Vier Abfragen, jede als eigener Block. Monate und laufende Summe je Team:
+
 ```sql
-SET TimeZone = 'UTC';
 SELECT team, count(*), max(running_total) FROM tickets.result_1
 GROUP BY team ORDER BY team;
-SELECT count(*), max(rank_no) FROM tickets.result_2;
-SELECT depth, count(*) FROM tickets.result_3 GROUP BY depth ORDER BY depth;
-SELECT count(*) FROM tickets.result_4;
-RESET TimeZone;
 ```
 
-Referenzlauf:
-
 ```text
-    team    | count |  max   
+    team    | count |  max
 ------------+-------+--------
  Billing    |    25 | 273940
  Onboarding |    25 | 114676
  Retention  |    25 | 100992
  Technical  |    25 | 230551
 (4 rows)
+```
 
- count | max 
+Die Rangliste der geschlossenen Tickets:
+
+```sql
+SELECT count(*), max(rank_no) FROM tickets.result_2;
+```
+
+```text
+ count | max
 -------+-----
    150 |   3
 (1 row)
+```
 
- depth | count 
+Der Kommentarbaum von Ticket 9:
+
+```sql
+SELECT depth, count(*) FROM tickets.result_3 GROUP BY depth ORDER BY depth;
+```
+
+```text
+ depth | count
 -------+-------
      1 |     1
      2 |     2
      3 |     1
 (3 rows)
+```
 
- count 
+Die Tickets mit `csat_score = 5`:
+
+```sql
+SELECT count(*) FROM tickets.result_4;
+```
+
+```text
+ count
 -------
  80307
 (1 row)
