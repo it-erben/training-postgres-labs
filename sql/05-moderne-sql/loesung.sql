@@ -1,8 +1,8 @@
 -- Musterlösung zu SQL-Übung 5. Im Query Tool abschnittsweise ausführen:
 -- jeden mit "-- Abschnitt" beginnenden Block einzeln markieren und mit F5
 -- ausführen. Am Stück zeigt Data Output nur die letzte Kontrollabfrage.
--- Abschnitt 1 entfernt alle vier Ergebnistabellen, die Datei lässt sich
--- deshalb wiederholen. ticket_metadata_gin (auch aus Übung 2) bleibt
+-- Der erste Abschnitt entfernt alle vier Ergebnistabellen, die Datei lässt
+-- sich deshalb wiederholen. ticket_metadata_gin (auch aus Übung 2) bleibt
 -- bestehen.
 
 -- Abschnitt 1: Ergebnistabellen entfernen
