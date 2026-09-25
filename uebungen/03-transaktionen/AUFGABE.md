@@ -119,16 +119,19 @@ for (var attempt = 1; ; attempt++)
 Vor jeder neuen Runde wartet die Schleife kurz. Ohne Pause startet der
 Verlierer eines Konflikts sofort neu, solange die andere Transaktion noch
 nicht bestätigt hat, und läuft erneut in `40001`. Nach drei solchen Runden
-wäre die Buchung verloren, obwohl die andere Seite nur wenige
-Millisekunden später bestätigt. `RetryDelay` legt die Pause fest: 20 ms
-Obergrenze, je Versuch verdoppelt, höchstens 200 ms. Gewartet wird
-zufällig zwischen der Hälfte und der ganzen Obergrenze, damit zwei
-gleichzeitige Wiederholungen nicht wieder im Gleichschritt laufen:
+wäre die Buchung verloren, obwohl die andere Seite kurz danach
+bestätigt. `RetryDelay` legt die Pause fest: 100 ms Obergrenze, je
+Versuch verdoppelt, höchstens 200 ms. Gewartet wird zufällig zwischen der
+Hälfte und der ganzen Obergrenze, damit zwei gleichzeitige Wiederholungen
+nicht wieder im Gleichschritt laufen. Bei drei Versuchen sind das 50 bis
+100 ms vor dem zweiten und 100 bis 200 ms vor dem dritten. Kürzere Pausen
+reichten auf einem stark ausgelasteten Rechner nicht, dort brauchte die
+andere Transaktion bis zu 160 ms bis zum `COMMIT`:
 
 ```csharp
 public static TimeSpan RetryDelay(int attempt)
 {
-    var ceilingMs = Math.Min(200, 20 << Math.Min(attempt - 1, 4));
+    var ceilingMs = Math.Min(200, 100 << Math.Min(attempt - 1, 4));
     var delayMs = Random.Shared.Next(ceilingMs / 2, ceilingMs + 1);
     return TimeSpan.FromMilliseconds(delayMs);
 }
