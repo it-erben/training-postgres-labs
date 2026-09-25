@@ -33,10 +33,10 @@ Im Kurs übernimmt das der Betrieb. Ob beides erledigt ist, zeigt diese
 Abfrage mit `t` in beiden Spalten:
 
 ```sql
-SELECT EXISTS (SELECT FROM pg_extension WHERE extname = 'postgres_fdw') AS installiert,
+SELECT EXISTS (SELECT FROM pg_extension WHERE extname = 'postgres_fdw') AS installed,
        EXISTS (SELECT FROM pg_foreign_data_wrapper
                WHERE fdwname = 'postgres_fdw'
-                 AND has_foreign_data_wrapper_privilege(oid, 'USAGE')) AS usage_recht;
+                 AND has_foreign_data_wrapper_privilege(oid, 'USAGE')) AS usage_granted;
 ```
 
 Die Gegenseite ist deine eigene Datenbank `app`, erreicht über den Dienst
@@ -50,18 +50,18 @@ Die Gegenseite ist deine eigene Datenbank `app`, erreicht über den Dienst
    in deiner Datenbank installiert ist, und lies für die Standardversion
    `trusted` aus `pg_available_extension_versions` ab. Eine Erweiterung, die
    im Image fehlt, soll trotzdem als Zeile erscheinen.
-2. Lege den Server `kurs_loopback` mit `host '<cluster>-rw'`,
+2. Lege den Server `course_loopback` mit `host '<cluster>-rw'`,
    `dbname 'app'` und `sslmode 'verify-full'` an. Lege ein User Mapping
    für `CURRENT_USER` mit `user 'app'` und dem Passwort an. Lege das Schema
-   `fern` an und importiere mit `IMPORT FOREIGN SCHEMA ... LIMIT TO` nur
+   `remote` an und importiere mit `IMPORT FOREIGN SCHEMA ... LIMIT TO` nur
    die Tabellen `agent` und `ticket` aus dem Schema `tickets`.
 3. Zähle die offenen Tickets (`status = 'open'`) von Agents aus dem Team
-   `Technik`: einmal über `tickets.ticket` und `tickets.agent`, einmal über
-   `fern.ticket` und `fern.agent`. Gib beide Zahlen in einer Zeile aus.
-4. Sieh dir die Zählung über `fern` mit `EXPLAIN (VERBOSE, COSTS OFF)` an.
+   `Technical`: einmal über `tickets.ticket` und `tickets.agent`, einmal über
+   `remote.ticket` und `remote.agent`. Gib beide Zahlen in einer Zeile aus.
+4. Sieh dir die Zählung über `remote` mit `EXPLAIN (VERBOSE, COSTS OFF)` an.
    Welche Teile der Abfrage stehen in der Zeile `Remote SQL`, und was
    bleibt für den lokalen Server?
-5. Nimm `SELECT count(*) FROM fern.ticket WHERE status = 'open'` und
+5. Nimm `SELECT count(*) FROM remote.ticket WHERE status = 'open'` und
    ergänze die Bedingung `created_at >= now() - interval '90 days'`.
    Vergleiche beide Pläne: Welche Bedingung steht im `Remote SQL`, welche
    in einer Zeile `Filter:`, und wo wird gezählt?
@@ -70,19 +70,19 @@ Die Gegenseite ist deine eigene Datenbank `app`, erreicht über den Dienst
 
 ```sql
 SELECT (SELECT count(*) FROM tickets.ticket t JOIN tickets.agent a ON a.id = t.agent_id
-        WHERE a.team = 'Technik' AND t.status = 'open') AS lokal,
-       (SELECT count(*) FROM fern.ticket t JOIN fern.agent a ON a.id = t.agent_id
-        WHERE a.team = 'Technik' AND t.status = 'open') AS fern;
+        WHERE a.team = 'Technical' AND t.status = 'open') AS local,
+       (SELECT count(*) FROM remote.ticket t JOIN remote.agent a ON a.id = t.agent_id
+        WHERE a.team = 'Technical' AND t.status = 'open') AS remote;
 EXPLAIN (VERBOSE, COSTS OFF)
-SELECT count(*) FROM fern.ticket WHERE status = 'open';
+SELECT count(*) FROM remote.ticket WHERE status = 'open';
 ```
 
 Die erste Abfrage zählt auf beiden Wegen dieselben Tickets:
 
 ```text
- lokal | fern
--------+------
-  3784 | 3784
+ local | remote
+-------+--------
+  3784 |   3784
 (1 row)
 ```
 
@@ -94,7 +94,7 @@ bleibt ein einziger `Foreign Scan`:
 -----------------------------------------------------------------------------
  Foreign Scan
    Output: (count(*))
-   Relations: Aggregate on (fern.ticket)
+   Relations: Aggregate on (remote.ticket)
    Remote SQL: SELECT count(*) FROM tickets.ticket WHERE ((status = 'open'))
 (4 rows)
 ```
@@ -119,7 +119,7 @@ Ausgabe ist um die Spaltenliste des `Foreign Scan` gekürzt:
 ```text
  Aggregate
    Output: count(*)
-   ->  Foreign Scan on fern.ticket
+   ->  Foreign Scan on remote.ticket
          ...
          Filter: (ticket.created_at >= (now() - '90 days'::interval))
          Remote SQL: SELECT created_at FROM tickets.ticket WHERE ((status = 'open'))
@@ -130,7 +130,7 @@ Ausgabe ist um die Spaltenliste des `Foreign Scan` gekürzt:
 
 `CREATE SERVER` und `CREATE USER MAPPING` bauen keine Verbindung auf. Ein
 falscher Host oder ein falsches Passwort zeigt sich erst beim Import mit
-`08001` und `could not connect to server "kurs_loopback"`. Die Zeile
+`08001` und `could not connect to server "course_loopback"`. Die Zeile
 `DETAIL` nennt die Ursache, etwa
 `password authentication failed for user "app"`. Fehlt das Passwort im
 User Mapping, meldet `postgres_fdw` `2F003`
@@ -150,10 +150,10 @@ einem anderen Pfad im Datenbank-Pod, nennt ihn die Serveroption
 `sslrootcert`; welcher Pfad das im Kurs ist, sagt dir die Kursleitung:
 
 ```sql
-ALTER SERVER kurs_loopback OPTIONS (ADD sslrootcert '<ca-pfad>');
+ALTER SERVER course_loopback OPTIONS (ADD sslrootcert '<ca-pfad>');
 ```
 
-Fehlt die Datei, scheitert der erste Zugriff über `fern`. Im lokalen
+Fehlt die Datei, scheitert der erste Zugriff über `remote`. Im lokalen
 Referenzlauf lief ein Server `tls_probe` gegen eine Gegenseite mit TLS,
 auf dem Datenbankserver lag keine CA-Datei:
 
@@ -178,7 +178,7 @@ wandert die Bedingung wieder mit.
 Das Passwort steht im Klartext im Katalog. `pg_user_mappings.umoptions`
 zeigt es dir als Eigentümer des Mappings.
 
-`loesung.sql` entfernt zu Beginn das Schema `fern` und den Server
-`kurs_loopback` samt User Mapping und lässt sich deshalb mehrfach
+`loesung.sql` entfernt zu Beginn das Schema `remote` und den Server
+`course_loopback` samt User Mapping und lässt sich deshalb mehrfach
 ausführen. Die Datei enthält `<cluster>-rw` und `<passwort>` als
 Platzhalter; ersetze beide nur im Query Tool.

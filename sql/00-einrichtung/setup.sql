@@ -54,7 +54,7 @@ SELECT
         || (ARRAY['Bauer','Fischer','Hoffmann','Klein','Lindner','Meyer',
                    'Neumann','Schulz','Vogel','Wagner'])[1 + floor(seed_rand(s.i, 'agent_last_name') * 10)::int],
     'agent' || s.i || '@example.test',
-    (ARRAY['Billing','Technik','Onboarding','Retention'])[1 + floor(seed_rand(s.i, 'agent_team') * 4)::int]
+    (ARRAY['Billing','Technical','Onboarding','Retention'])[1 + floor(seed_rand(s.i, 'agent_team') * 4)::int]
 FROM generate_series(1, 50) AS s(i)
 ORDER BY s.i;
 
@@ -207,4 +207,4 @@ COMMIT;
 -- Kontrolle: 50 | 800000 | 2000678
 SELECT (SELECT count(*) FROM tickets.agent)   AS agents,
        (SELECT count(*) FROM tickets.ticket)  AS tickets,
-       (SELECT count(*) FROM tickets.comment) AS kommentare;
+       (SELECT count(*) FROM tickets.comment) AS comments;

@@ -23,8 +23,8 @@ lässt. `ticket_metadata_gin` aus den Übungen 2 und 5 bleibt davon
 unberührt:
 
 ```sql
-DROP TABLE IF EXISTS tickets.ticket_referenz;
-DROP TABLE IF EXISTS tickets.bereitschaft;
+DROP TABLE IF EXISTS tickets.ticket_ref;
+DROP TABLE IF EXISTS tickets.on_call;
 ALTER TABLE tickets.ticket DROP CONSTRAINT IF EXISTS ticket_priority_check;
 DROP INDEX IF EXISTS tickets.comment_parent_idx;
 ```
@@ -40,7 +40,7 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    Beobachtung. In A:
 
    ```sql
-   SET application_name = 'uebung_a';
+   SET application_name = 'exercise_a';
    ALTER TABLE tickets.ticket
        ADD CONSTRAINT ticket_priority_check
        CHECK (priority BETWEEN 1 AND 4) NOT VALID;
@@ -54,7 +54,7 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    SELECT a.application_name, l.mode, l.granted
    FROM pg_locks l
    JOIN pg_stat_activity a ON a.pid = l.pid
-   WHERE a.application_name = 'uebung_a' AND l.relation = 'tickets.ticket'::regclass
+   WHERE a.application_name = 'exercise_a' AND l.relation = 'tickets.ticket'::regclass
    ORDER BY l.mode;
 
    UPDATE tickets.ticket SET priority = priority WHERE id = 1;
@@ -65,7 +65,7 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    ```text
     application_name |           mode           | granted 
    ------------------+--------------------------+---------
-    uebung_a         | ShareUpdateExclusiveLock | t
+    exercise_a       | ShareUpdateExclusiveLock | t
    (1 row)
 
    UPDATE 1
@@ -94,7 +94,7 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    `tickets`, deren erste Spalte keinen Index anführt:
 
    ```sql
-   SELECT c.conrelid::regclass AS tabelle, c.conname
+   SELECT c.conrelid::regclass AS table_name, c.conname
    FROM pg_constraint c
    WHERE c.contype = 'f'
      AND c.connamespace = 'tickets'::regnamespace
@@ -109,7 +109,7 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    Referenzlauf:
 
    ```text
-       tabelle      |        conname         
+      table_name    |        conname         
    -----------------+------------------------
     tickets.comment | comment_parent_id_fkey
     tickets.comment | comment_ticket_id_fkey
@@ -125,16 +125,16 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    CREATE INDEX comment_parent_idx ON tickets.comment (parent_id);
    ```
 
-3. Lege `tickets.bereitschaft(agent_id, zeitraum)` an. Kein Agent darf zwei
+3. Lege `tickets.on_call(agent_id, time_range)` an. Kein Agent darf zwei
    sich überlappende Bereitschaftszeiten haben:
 
    ```sql
    CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-   CREATE TABLE tickets.bereitschaft (
+   CREATE TABLE tickets.on_call (
        agent_id bigint REFERENCES tickets.agent(id),
-       zeitraum tstzrange NOT NULL,
-       EXCLUDE USING gist (agent_id WITH =, zeitraum WITH &&)
+       time_range tstzrange NOT NULL,
+       EXCLUDE USING gist (agent_id WITH =, time_range WITH &&)
    );
    ```
 
@@ -148,11 +148,11 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    eine Zeit, die beide überlappt:
 
    ```sql
-   INSERT INTO tickets.bereitschaft (agent_id, zeitraum) VALUES
+   INSERT INTO tickets.on_call (agent_id, time_range) VALUES
        (1, tstzrange('2026-09-01 00:00+00', '2026-09-08 00:00+00', '[)')),
        (1, tstzrange('2026-09-08 00:00+00', '2026-09-15 00:00+00', '[)'));
 
-   INSERT INTO tickets.bereitschaft (agent_id, zeitraum)
+   INSERT INTO tickets.on_call (agent_id, time_range)
    VALUES (1, tstzrange('2026-09-05 00:00+00', '2026-09-10 00:00+00', '[)'));
    ```
 
@@ -167,18 +167,18 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    beobachte, wann PostgreSQL ihn prüft:
 
    ```sql
-   CREATE TABLE tickets.ticket_referenz (
+   CREATE TABLE tickets.ticket_ref (
        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
        ticket_id bigint NOT NULL
            REFERENCES tickets.ticket(id) DEFERRABLE INITIALLY DEFERRED
    );
 
    BEGIN;
-   INSERT INTO tickets.ticket_referenz (ticket_id) VALUES (9999999);
+   INSERT INTO tickets.ticket_ref (ticket_id) VALUES (9999999);
    -- INSERT 0 1, ohne Fehler: Ticket 9999999 existiert nicht.
    COMMIT;
-   -- ERROR: 23503: insert or update on table "ticket_referenz" violates
-   -- foreign key constraint "ticket_referenz_ticket_id_fkey"
+   -- ERROR: 23503: insert or update on table "ticket_ref" violates
+   -- foreign key constraint "ticket_ref_ticket_id_fkey"
    ```
 
    Mit `DEFERRABLE INITIALLY DEFERRED` prüft PostgreSQL erst am Ende der
@@ -192,22 +192,22 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
 ```sql
 SET TimeZone = 'UTC';
 SELECT conname, contype, convalidated FROM pg_constraint
-WHERE conrelid IN ('tickets.ticket'::regclass, 'tickets.bereitschaft'::regclass)
+WHERE conrelid IN ('tickets.ticket'::regclass, 'tickets.on_call'::regclass)
   AND contype IN ('c', 'x') ORDER BY conname;
-SELECT agent_id, zeitraum FROM tickets.bereitschaft ORDER BY agent_id, lower(zeitraum);
+SELECT agent_id, time_range FROM tickets.on_call ORDER BY agent_id, lower(time_range);
 RESET TimeZone;
 ```
 
 Referenzlauf:
 
 ```text
-               conname               | contype | convalidated 
--------------------------------------+---------+--------------
- bereitschaft_agent_id_zeitraum_excl | x       | t
- ticket_priority_check               | c       | t
+             conname              | contype | convalidated 
+----------------------------------+---------+--------------
+ on_call_agent_id_time_range_excl | x       | t
+ ticket_priority_check            | c       | t
 (2 rows)
 
- agent_id |                      zeitraum                       
+ agent_id |                     time_range                      
 ----------+-----------------------------------------------------
         1 | ["2026-09-01 00:00:00+00","2026-09-08 00:00:00+00")
         1 | ["2026-09-08 00:00:00+00","2026-09-15 00:00:00+00")
@@ -215,7 +215,7 @@ Referenzlauf:
 ```
 
 `convalidated = t` gilt für beide Regeln. `ticket_priority_check` hat
-Aufgabe 1 ausdrücklich validiert. `bereitschaft_..._excl` entstand mit
+Aufgabe 1 ausdrücklich validiert. `on_call_..._excl` entstand mit
 `CREATE TABLE`, und PostgreSQL prüft einen dort angelegten Constraint
 sofort. Den Zwischenzustand `NOT VALID` erreicht ein Constraint nur
 nachträglich per `ALTER TABLE ... ADD CONSTRAINT`. Eine Ausnahme gibt es
@@ -242,9 +242,9 @@ gesamte Tabelle.
 `EXCLUDE USING gist` erweitert die Idee eines Unique-Constraints von
 Gleichheit auf beliebige Operatoren. Ein Unique-Constraint verbietet zwei
 Zeilen mit gleichem Wert. Der Exclusion Constraint hier verbietet zwei
-Zeilen, für die Gleichheit auf `agent_id` und Überlappung auf `zeitraum`
+Zeilen, für die Gleichheit auf `agent_id` und Überlappung auf `time_range`
 gleichzeitig zutreffen.
 
-`loesung.sql` entfernt zu Beginn `tickets.ticket_referenz`,
-`tickets.bereitschaft`, `ticket_priority_check` und `comment_parent_idx`
+`loesung.sql` entfernt zu Beginn `tickets.ticket_ref`,
+`tickets.on_call`, `ticket_priority_check` und `comment_parent_idx`
 und lässt sich deshalb mehrfach ausführen.

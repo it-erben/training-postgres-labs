@@ -19,7 +19,7 @@ Tool des RW-Servers deiner Servergruppe mit `Auto commit` an und
 `Auto rollback on error` aus. Entferne zu Beginn die Übungstabelle:
 
 ```sql
-DROP TABLE IF EXISTS tickets.auftrag;
+DROP TABLE IF EXISTS tickets.operation;
 ```
 
 Für Aufgabe 4 brauchst du ein zweites Query Tool auf dem RW-Server und
@@ -31,11 +31,11 @@ auslösen darfst, sagt dir die Kursleitung.
 1. Lege die Auftragstabelle an:
 
    ```sql
-   CREATE TABLE tickets.auftrag (
+   CREATE TABLE tickets.operation (
        operation_id uuid PRIMARY KEY,
        ticket_id bigint NOT NULL REFERENCES tickets.ticket (id),
-       nutzlast jsonb NOT NULL,
-       ausgefuehrt_am timestamptz NOT NULL DEFAULT clock_timestamp()
+       payload jsonb NOT NULL,
+       executed_at timestamptz NOT NULL DEFAULT clock_timestamp()
    );
    ```
 
@@ -45,7 +45,7 @@ auslösen darfst, sagt dir die Kursleitung.
 2. Führe denselben Auftrag zweimal aus:
 
    ```sql
-   INSERT INTO tickets.auftrag (operation_id, ticket_id, nutzlast)
+   INSERT INTO tickets.operation (operation_id, ticket_id, payload)
    VALUES ('daf79a48-a152-47d4-9d92-3cca9782adf0', 1,
            '{"agent_id": 7}')
    ON CONFLICT (operation_id) DO NOTHING
@@ -57,12 +57,12 @@ auslösen darfst, sagt dir die Kursleitung.
    Wiederhole den Auftrag dann so, wie es eine Anwendung tut, die bei
    jedem Versuch eine neue ID erzeugt: dieselbe Anweisung mit
    `operation_id` `'4d45ac5a-e1a5-423c-ab40-38b15d424587'`. Zähle danach
-   die Zeilen in `tickets.auftrag`. Wie viele Aufträge waren beabsichtigt?
+   die Zeilen in `tickets.operation`. Wie viele Aufträge waren beabsichtigt?
 
 3. Sende denselben Schlüssel mit einer anderen Nutzlast:
 
    ```sql
-   INSERT INTO tickets.auftrag (operation_id, ticket_id, nutzlast)
+   INSERT INTO tickets.operation (operation_id, ticket_id, payload)
    VALUES ('daf79a48-a152-47d4-9d92-3cca9782adf0', 1,
            '{"agent_id": 12}')
    ON CONFLICT (operation_id) DO NOTHING
@@ -72,16 +72,16 @@ auslösen darfst, sagt dir die Kursleitung.
    Die Anweisung liefert keine Zeile und keinen Fehler. Schreibe eine
    Abfrage, die für diese `operation_id` die gespeicherte und die
    gesendete Nutzlast nebeneinander zeigt und in einer Spalte
-   `gleiche_nutzlast` sagt, ob beide übereinstimmen.
+   `same_payload` sagt, ob beide übereinstimmen.
 
 4. Beobachte deine eigene Verbindung bei einem Switchover. Führe diese
    Abfrage im Query Tool des RW-Servers und im Query Tool des RO-Servers
    aus und notiere die Werte:
 
    ```sql
-   SELECT inet_server_addr() AS server_adresse,
-          pg_postmaster_start_time() AS gestartet_um,
-          pg_is_in_recovery() AS replikat,
+   SELECT inet_server_addr() AS server_addr,
+          pg_postmaster_start_time() AS started_at,
+          pg_is_in_recovery() AS is_replica,
           pg_backend_pid() AS pid;
    ```
 
@@ -105,17 +105,17 @@ auslösen darfst, sagt dir die Kursleitung.
 
      Führe die Abfrage danach in beiden Query Tools erneut aus, ohne neu
      zu verbinden. Notiere die Meldung im RW-Tab. Verbinde neu und
-     vergleiche `server_adresse` und `replikat` mit den ersten Werten.
+     vergleiche `server_addr` und `is_replica` mit den ersten Werten.
 
    - Ohne dieses Recht: Beende deine RW-Verbindung selbst. Setze im
      ersten Query Tool des RW-Servers zuerst
-     `SET application_name = 'uebung14_a';`. Führe im zweiten Query Tool
+     `SET application_name = 'exercise14_a';`. Führe im zweiten Query Tool
      des RW-Servers aus:
 
      ```sql
-     SELECT pid, pg_terminate_backend(pid) AS beendet
+     SELECT pid, pg_terminate_backend(pid) AS terminated
      FROM pg_stat_activity
-     WHERE application_name = 'uebung14_a'
+     WHERE application_name = 'exercise14_a'
        AND usename = current_user;
      ```
 
@@ -126,9 +126,9 @@ auslösen darfst, sagt dir die Kursleitung.
    (PostgreSQL 18.6, lokal):
 
    ```text
-    pid  | beendet 
-   ------+---------
-    3132 | t
+    pid  | terminated 
+   ------+------------
+    6528 | t
    (1 row)
 
    FATAL:  57P01: terminating connection due to administrator command
@@ -152,18 +152,18 @@ auslösen darfst, sagt dir die Kursleitung.
 ## Ergebnis prüfen
 
 ```sql
-SELECT operation_id, count(*) OVER () AS auftraege, nutzlast
-FROM tickets.auftrag
-ORDER BY ausgefuehrt_am;
+SELECT operation_id, count(*) OVER () AS operations, payload
+FROM tickets.operation
+ORDER BY executed_at;
 ```
 
 Referenzlauf mit psql (PostgreSQL 18.6, lokal) nach Aufgabe 3:
 
 ```text
-             operation_id             | auftraege |    nutzlast     
---------------------------------------+-----------+-----------------
- daf79a48-a152-47d4-9d92-3cca9782adf0 |         2 | {"agent_id": 7}
- 4d45ac5a-e1a5-423c-ab40-38b15d424587 |         2 | {"agent_id": 7}
+             operation_id             | operations |     payload     
+--------------------------------------+------------+-----------------
+ daf79a48-a152-47d4-9d92-3cca9782adf0 |          2 | {"agent_id": 7}
+ 4d45ac5a-e1a5-423c-ab40-38b15d424587 |          2 | {"agent_id": 7}
 (2 rows)
 ```
 
@@ -175,13 +175,13 @@ Wiederholung mit neuer ID. Beabsichtigt war ein Auftrag.
 Die Abfrage aus Aufgabe 3 in `loesung.sql` zeigte im selben Lauf:
 
 ```text
-   gespeichert   |     gesendet     | gleiche_nutzlast 
------------------+------------------+------------------
+     stored      |       sent       | same_payload 
+-----------------+------------------+--------------
  {"agent_id": 7} | {"agent_id": 12} | f
 (1 row)
 ```
 
-Steht nur eine Zeile in `tickets.auftrag`, fehlt die Wiederholung mit
+Steht nur eine Zeile in `tickets.operation`, fehlt die Wiederholung mit
 neuer ID aus Aufgabe 2. Meldet die Abfrage `42P01`, fehlt Aufgabe 1.
 
 ## Hinweise
@@ -199,23 +199,23 @@ vergleicht den Inhalt; Leerzeichen und die Reihenfolge der Schlüssel sind
 dabei egal.
 
 Die fachliche Wirkung eines Auftrags gehört in dieselbe Transaktion wie
-die Zeile in `tickets.auftrag`. Dann stehen nach einem Abbruch entweder
+die Zeile in `tickets.operation`. Dann stehen nach einem Abbruch entweder
 beide in der Datenbank oder keines von beiden. Eine Anweisung mit
 datenverändernder CTE erledigt das in einem Schritt. Das `UPDATE` weist
 das Ticket nur zu, wenn der Auftrag neu ist; in der Anwendung stehen `$1`
 bis `$3` für die Parameter:
 
 ```sql
-WITH neu AS (
-    INSERT INTO tickets.auftrag (operation_id, ticket_id, nutzlast)
+WITH inserted AS (
+    INSERT INTO tickets.operation (operation_id, ticket_id, payload)
     VALUES ($1, $2, $3)
     ON CONFLICT (operation_id) DO NOTHING
-    RETURNING ticket_id, nutzlast
+    RETURNING ticket_id, payload
 )
 UPDATE tickets.ticket AS t
-SET agent_id = (neu.nutzlast ->> 'agent_id')::bigint
-FROM neu
-WHERE t.id = neu.ticket_id;
+SET agent_id = (inserted.payload ->> 'agent_id')::bigint
+FROM inserted
+WHERE t.id = inserted.ticket_id;
 ```
 
 Ein lokaler Lauf mit festen Werten für Ticket 2 meldete zuerst
@@ -229,7 +229,7 @@ deshalb braucht das Query Tool für weitere Befehle eine neue Verbindung. Der
 Hostname `<cluster>-rw` führt danach zur neuen Primärinstanz.
 
 Eine Verbindung zum RO-Server kann den Switchover überstehen, wenn sie mit
-dem Replikat verbunden war, das zur Primärinstanz wird. `replikat` zeigt
+dem Replikat verbunden war, das zur Primärinstanz wird. `is_replica` zeigt
 dann `f` auf derselben Verbindung. Prüfe deshalb nach einem Switchover mit
 `pg_is_in_recovery()`, wohin eine offene Verbindung zeigt.
 
@@ -243,7 +243,7 @@ er eine Wirkung verdoppelt, entscheidet die Operations-ID. Die .NET-Übung
 06 im Ordner `uebungen/06-betrieb` zeigt `Keepalive` und das Lesen vom
 Replikat.
 
-`loesung.sql` entfernt zu Beginn `tickets.auftrag` und lässt sich deshalb
+`loesung.sql` entfernt zu Beginn `tickets.operation` und lässt sich deshalb
 mehrfach ausführen. Aufgabe 4 steht dort als Kommentarblock, weil sie
 mehrere Verbindungen und einen Switchover braucht. Die Entscheidungen zu
 Aufgabe 5 stehen als Kommentar am Ende.

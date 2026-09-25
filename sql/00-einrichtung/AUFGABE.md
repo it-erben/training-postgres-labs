@@ -43,9 +43,9 @@ Ohne `kubectl` findest du das Secret in Headlamp unter `Configuration`,
 Die Kontrollabfrage am Ende von `setup.sql` liefert:
 
 ```text
- agents | tickets | kommentare
---------+---------+------------
-     50 |  800000 |    2000678
+ agents | tickets | comments
+--------+---------+----------
+     50 |  800000 |  2000678
 (1 row)
 ```
 

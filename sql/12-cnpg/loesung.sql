@@ -1,23 +1,23 @@
 -- Musterlösung zu SQL-Übung 12. Der ausführbare Teil läuft im Query Tool
 -- des RW-Servers und lässt sich wiederholen: Er entfernt zu Beginn
--- tickets.lesetest und legt die Tabelle neu an. Anweisungen für den
+-- tickets.read_test und legt die Tabelle neu an. Anweisungen für den
 -- RO-Server stehen als Kommentarblock, markiert mit -- RO-Server, weil eine
 -- Skriptausführung nur eine Verbindung hat. Aufgabe 4 und 5 sind
 -- Beobachtung und Begründung; ihre Lösung steht als Kommentar am Ende.
-DROP TABLE IF EXISTS tickets.lesetest;
+DROP TABLE IF EXISTS tickets.read_test;
 
 -- Aufgabe 1: Primärinstanz und Replikat unterscheiden
 -- RW-Server
-SELECT pg_is_in_recovery() AS replikat,
-       inet_server_addr() AS server_adresse,
-       current_setting('transaction_read_only') AS nur_lesen;
--- Ergebnis: replikat f, nur_lesen off.
+SELECT pg_is_in_recovery() AS is_replica,
+       inet_server_addr() AS server_addr,
+       current_setting('transaction_read_only') AS read_only;
+-- Ergebnis: is_replica f, read_only off.
 
 -- RO-Server
--- SELECT pg_is_in_recovery() AS replikat,
---        inet_server_addr() AS server_adresse,
---        current_setting('transaction_read_only') AS nur_lesen;
--- -- Ergebnis: replikat t, nur_lesen on, eine andere server_adresse.
+-- SELECT pg_is_in_recovery() AS is_replica,
+--        inet_server_addr() AS server_addr,
+--        current_setting('transaction_read_only') AS read_only;
+-- -- Ergebnis: is_replica t, read_only on, eine andere server_addr.
 
 -- Aufgabe 2: Verschlüsselung der eigenen Verbindung
 -- RW-Server
@@ -29,26 +29,26 @@ WHERE pid = pg_backend_pid();
 
 -- Aufgabe 3: Schreiben auf RW, sofort lesen auf RO
 -- RW-Server
-CREATE TABLE tickets.lesetest (
+CREATE TABLE tickets.read_test (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    notiz text NOT NULL,
-    geschrieben_um timestamptz NOT NULL DEFAULT now()
+    note text NOT NULL,
+    written_at timestamptz NOT NULL DEFAULT now()
 );
-INSERT INTO tickets.lesetest (notiz) VALUES ('geschrieben auf RW');
-SELECT id, notiz, geschrieben_um, pg_current_wal_lsn() AS wal_position_rw
-FROM tickets.lesetest;
+INSERT INTO tickets.read_test (note) VALUES ('geschrieben auf RW');
+SELECT id, note, written_at, pg_current_wal_lsn() AS wal_position_rw
+FROM tickets.read_test;
 
 -- RO-Server, direkt danach
--- SELECT id, notiz, geschrieben_um FROM tickets.lesetest;
--- SELECT pg_last_wal_replay_lsn() AS eingespielt_bis,
---        pg_last_xact_replay_timestamp() AS letzte_transaktion;
--- -- letzte_transaktion ist der Commit-Zeitpunkt auf der Primärinstanz,
--- -- kurz nach geschrieben_um; im Referenzlauf lag weniger als eine
+-- SELECT id, note, written_at FROM tickets.read_test;
+-- SELECT pg_last_wal_replay_lsn() AS replayed_up_to,
+--        pg_last_xact_replay_timestamp() AS last_replayed_xact;
+-- -- last_replayed_xact ist der Commit-Zeitpunkt auf der Primärinstanz,
+-- -- kurz nach written_at; im Referenzlauf lag weniger als eine
 -- -- Millisekunde dazwischen. Die Zeile ist sichtbar, sobald
--- -- eingespielt_bis die wal_position_rw erreicht hat.
+-- -- replayed_up_to die wal_position_rw erreicht hat.
 --
 -- RO-Server, Schreibversuch
--- INSERT INTO tickets.lesetest (notiz) VALUES ('geschrieben auf RO');
+-- INSERT INTO tickets.read_test (note) VALUES ('geschrieben auf RO');
 -- -- ERROR: 25006: cannot execute INSERT in a read-only transaction
 
 -- Aufgabe 4: Cluster-Status
@@ -57,7 +57,7 @@ FROM tickets.lesetest;
 --   Spalten STATUS (Phase), PRIMARY (Primärinstanz), INSTANCES und READY.
 --   kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L role -o wide
 --   Spalte ROLE: eine Instanz primary, die übrigen replica. Spalte IP:
---   Die Adresse der Primärinstanz ist die server_adresse aus Aufgabe 1.
+--   Die Adresse der Primärinstanz ist die server_addr aus Aufgabe 1.
 -- Variante Headlamp:
 --   Custom Resources > postgresql.cnpg.io > Cluster > <cluster>,
 --   im Status die Felder phase, currentPrimary, instances und readyInstances.
@@ -78,6 +78,6 @@ FROM tickets.lesetest;
 
 -- Kontrolle
 -- RO-Server
--- SELECT pg_is_in_recovery() AS replikat,
---        (SELECT count(*) FROM tickets.lesetest) AS zeilen;
--- -- Ergebnis: replikat t, zeilen 1.
+-- SELECT pg_is_in_recovery() AS is_replica,
+--        (SELECT count(*) FROM tickets.read_test) AS row_count;
+-- -- Ergebnis: is_replica t, row_count 1.

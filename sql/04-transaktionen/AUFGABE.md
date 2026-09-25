@@ -22,17 +22,17 @@ Setze Ticket 1 und 2 zurück und lege die Protokolltabelle an:
 
 ```sql
 UPDATE tickets.ticket SET agent_id = NULL WHERE id IN (1, 2);
-DROP TABLE IF EXISTS tickets.zuweisung_log;
-CREATE TABLE tickets.zuweisung_log (
+DROP TABLE IF EXISTS tickets.assignment_log;
+CREATE TABLE tickets.assignment_log (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     ticket_id bigint NOT NULL,
     agent_id bigint NOT NULL,
-    verbindung text NOT NULL
+    conn_label text NOT NULL
 );
 ```
 
-Setze in Verbindung A `SET application_name = 'uebung_a';` und in
-Verbindung B `SET application_name = 'uebung_b';`. So findest du beide
+Setze in Verbindung A `SET application_name = 'exercise_a';` und in
+Verbindung B `SET application_name = 'exercise_b';`. So findest du beide
 Sitzungen gezielt in `pg_stat_activity`.
 
 ## Aufgaben
@@ -58,7 +58,7 @@ Sitzungen gezielt in `pg_stat_activity`.
 
    ```sql
    UPDATE tickets.ticket SET agent_id = 1 WHERE id = 1;
-   INSERT INTO tickets.zuweisung_log (ticket_id, agent_id, verbindung)
+   INSERT INTO tickets.assignment_log (ticket_id, agent_id, conn_label)
    VALUES (1, 1, 'A');
    COMMIT;
    ```
@@ -68,7 +68,7 @@ Sitzungen gezielt in `pg_stat_activity`.
 
    ```sql
    UPDATE tickets.ticket SET agent_id = 2 WHERE id = 1;
-   INSERT INTO tickets.zuweisung_log (ticket_id, agent_id, verbindung)
+   INSERT INTO tickets.assignment_log (ticket_id, agent_id, conn_label)
    VALUES (1, 2, 'B');
    COMMIT;
    ```
@@ -98,7 +98,7 @@ Sitzungen gezielt in `pg_stat_activity`.
 
    ```sql
    UPDATE tickets.ticket SET agent_id = 1 WHERE id = 1;
-   INSERT INTO tickets.zuweisung_log (ticket_id, agent_id, verbindung)
+   INSERT INTO tickets.assignment_log (ticket_id, agent_id, conn_label)
    VALUES (1, 1, 'A');
    COMMIT;
    ```
@@ -130,14 +130,14 @@ Sitzungen gezielt in `pg_stat_activity`.
    ist. Schließe A ab:
 
    ```sql
-   INSERT INTO tickets.zuweisung_log (ticket_id, agent_id, verbindung)
+   INSERT INTO tickets.assignment_log (ticket_id, agent_id, conn_label)
    VALUES (2, 1, 'A');
    COMMIT;
    ```
 
    B erhält danach die Meldung `UPDATE 0`: Die Bedingung `agent_id IS NULL`
    trifft auf die inzwischen von A geänderte Zeile nicht mehr zu. B trägt
-   deshalb nichts in `tickets.zuweisung_log` ein und schließt ohne
+   deshalb nichts in `tickets.assignment_log` ein und schließt ohne
    Änderung ab:
 
    ```sql
@@ -167,7 +167,7 @@ Sitzungen gezielt in `pg_stat_activity`.
    B wartet auf die Zeilensperre von A. Schließe A ab:
 
    ```sql
-   INSERT INTO tickets.zuweisung_log (ticket_id, agent_id, verbindung)
+   INSERT INTO tickets.assignment_log (ticket_id, agent_id, conn_label)
    VALUES (1, 1, 'A');
    COMMIT;
    ```
@@ -187,9 +187,9 @@ Sitzungen gezielt in `pg_stat_activity`.
 
    ```sql
    SELECT pid, application_name, state, wait_event_type, wait_event,
-          pg_blocking_pids(pid) AS blockierer
+          pg_blocking_pids(pid) AS blockers
    FROM pg_stat_activity
-   WHERE application_name IN ('uebung_a', 'uebung_b')
+   WHERE application_name IN ('exercise_a', 'exercise_b')
    ORDER BY application_name;
    ```
 
@@ -200,7 +200,7 @@ Sitzungen gezielt in `pg_stat_activity`.
    SELECT a.application_name, l.locktype, l.mode, l.granted
    FROM pg_locks l
    JOIN pg_stat_activity a ON a.pid = l.pid
-   WHERE a.application_name IN ('uebung_a', 'uebung_b')
+   WHERE a.application_name IN ('exercise_a', 'exercise_b')
    ORDER BY a.application_name, l.mode;
    ```
 
@@ -245,7 +245,7 @@ Transaktion regulär fortsetzen und abschließen.
 ## Ergebnis prüfen
 
 ```sql
-SELECT ticket_id, count(*) AS zuweisungen FROM tickets.zuweisung_log
+SELECT ticket_id, count(*) AS assignments FROM tickets.assignment_log
 GROUP BY ticket_id ORDER BY ticket_id;
 SELECT id, agent_id FROM tickets.ticket WHERE id IN (1, 2) ORDER BY id;
 ```
@@ -253,7 +253,7 @@ SELECT id, agent_id FROM tickets.ticket WHERE id IN (1, 2) ORDER BY id;
 Referenzlauf nach den Aufgaben 1 bis 4 in der beschriebenen Reihenfolge:
 
 ```text
- ticket_id | zuweisungen 
+ ticket_id | assignments 
 -----------+-------------
          1 |           4
          2 |           1
@@ -270,7 +270,7 @@ Vier protokollierte Zuweisungen für Ticket 1 stammen aus Aufgabe 1 (A und
 B, beide vermeintlich erfolgreich), Aufgabe 2 (nur A) und Aufgabe 4 (nur
 A). Der tatsächliche Endstand von Ticket 1 zeigt trotzdem nur eine
 einzige, zuletzt bestätigte Zuweisung. Der Bonus trägt nichts in
-`tickets.zuweisung_log` ein, die erste Abfrage bleibt nach ihm also gleich.
+`tickets.assignment_log` ein, die erste Abfrage bleibt nach ihm also gleich.
 Die zweite zeigt dann für Ticket 1 und 2 NULL in `agent_id`, weil der
 Bonus beide Zuweisungen zurücksetzt.
 
@@ -305,5 +305,5 @@ Die PID-Werte ändern sich von Lauf zu Lauf, das Verhalten bleibt gleich.
 `loesung.sql` enthält die Anweisungen beider Verbindungen als
 Kommentarblöcke, weil eine einzelne Skriptausführung keine zweite
 Verbindung besitzt. Der ausführbare Teil setzt nur Ticket 1 und 2 zurück
-und legt `tickets.zuweisung_log` neu an. Er lässt sich deshalb mehrfach
+und legt `tickets.assignment_log` neu an. Er lässt sich deshalb mehrfach
 ausführen.

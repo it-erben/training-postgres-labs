@@ -14,39 +14,39 @@ WHERE name IN ('max_connections',
                'reserved_connections')
 ORDER BY name;
 
-SELECT current_setting('max_connections')::int AS max_verbindungen,
-       count(*) FILTER (WHERE usename = current_user) AS eigene
+SELECT current_setting('max_connections')::int AS max_connections,
+       count(*) FILTER (WHERE usename = current_user) AS own_sessions
 FROM pg_stat_activity;
--- Mit einem einzigen Query Tool ist eigene mindestens 1. Im pgAdmin kommt
+-- Mit einem einzigen Query Tool ist own_sessions mindestens 1. Im pgAdmin kommt
 -- meist die Verbindung des Objektbaums dazu.
 
 -- Aufgabe 2: weitere Query Tools öffnen, dann im ersten Query Tool
-SELECT application_name, state, count(*) AS anzahl
+SELECT application_name, state, count(*) AS total
 FROM pg_stat_activity
 WHERE usename = current_user
 GROUP BY application_name, state
 ORDER BY application_name, state;
 -- Jedes Query Tool erscheint als "pgAdmin 4 - CONN:<zahl>", der
 -- Objektbaum als "pgAdmin 4 - DB:app". Die drei neuen Query Tools stehen
--- auf idle, das ausführende auf active. eigene aus Aufgabe 1 ist um drei
+-- auf idle, das ausführende auf active. own_sessions aus Aufgabe 1 ist um drei
 -- gestiegen.
 
 -- Aufgabe 3: Rechnung
-SELECT 3 * 20 AS bedarf_anwendung,
-       4 * 20 AS bedarf_rolling_update,
+SELECT 3 * 20 AS app_demand,
+       4 * 20 AS rolling_update_demand,
        current_setting('max_connections')::int
          - current_setting('superuser_reserved_connections')::int
-         - current_setting('reserved_connections')::int AS plaetze_ohne_reserve,
+         - current_setting('reserved_connections')::int AS slots_without_reserve,
        count(*) FILTER (WHERE usename IS NOT NULL
-                          AND datname IS NOT NULL) AS schon_belegt
+                          AND datname IS NOT NULL) AS already_used
 FROM pg_stat_activity;
 -- Mit max_connections 100 bleiben 97 Plätze ohne Reserve. Sie teilen sich
 -- alle Sitzungen mit Rolle und Datenbank: pgAdmin, Migrationen, Jobs,
 -- der Instance Manager des Operators (postgres, cnpg-instance-manager)
 -- und der Exporter (cnpg_metrics_exporter). WAL-Sender der Replikate
 -- (streaming_replica) haben keine Datenbank und belegen keinen Platz.
--- 60 passen, solange schon_belegt höchstens 37 ist. Während eines Rolling
--- Updates läuft ein vierter Pod mit weiteren 20; dann darf schon_belegt
+-- 60 passen, solange already_used höchstens 37 ist. Während eines Rolling
+-- Updates läuft ein vierter Pod mit weiteren 20; dann darf already_used
 -- höchstens 17 sein. Mit dem Npgsql-Standard Maximum Pool Size=100
 -- bräuchten drei Pods bis zu 300 Verbindungen. Sobald die 97 Plätze
 -- belegt sind, scheitert jede weitere Anmeldung von app mit 53300.
@@ -54,19 +54,19 @@ FROM pg_stat_activity;
 -- Aufgabe 4: idle in transaction erzeugen und finden
 --
 -- Verbindung A:
--- SET application_name = 'uebung13_a';
+-- SET application_name = 'exercise13_a';
 -- BEGIN;
--- SELECT count(*) AS offene_tickets FROM tickets.ticket WHERE status = 'open';
+-- SELECT count(*) AS open_tickets FROM tickets.ticket WHERE status = 'open';
 -- -- 13144; die Transaktion bleibt offen.
 --
 -- Verbindung B:
 -- SELECT application_name, state,
---        now() - xact_start AS transaktion_seit,
---        now() - state_change AS untaetig_seit
+--        now() - xact_start AS xact_age,
+--        now() - state_change AS idle_for
 -- FROM pg_stat_activity
 -- WHERE state = 'idle in transaction'
 --   AND usename = current_user;
--- -- Eine Zeile uebung13_a, state idle in transaction. transaktion_seit
+-- -- Eine Zeile exercise13_a, state idle in transaction. xact_age
 -- -- wächst bei jeder Wiederholung.
 --
 -- Verbindung A:
@@ -77,14 +77,14 @@ FROM pg_stat_activity;
 -- Verbindung A:
 -- SET idle_in_transaction_session_timeout = '10s';
 -- BEGIN;
--- SELECT count(*) AS offene_tickets FROM tickets.ticket WHERE status = 'open';
+-- SELECT count(*) AS open_tickets FROM tickets.ticket WHERE status = 'open';
 --
 -- Verbindung B (mehr als 10 Sekunden später):
--- SELECT count(*) AS sitzungen_a,
---        current_setting('idle_in_transaction_session_timeout') AS grenze_in_b
+-- SELECT count(*) AS sessions_a,
+--        current_setting('idle_in_transaction_session_timeout') AS timeout_in_b
 -- FROM pg_stat_activity
--- WHERE application_name = 'uebung13_a';
--- -- sitzungen_a 0, grenze_in_b 0: Die Grenze galt nur in A.
+-- WHERE application_name = 'exercise13_a';
+-- -- sessions_a 0, timeout_in_b 0: Die Grenze galt nur in A.
 --
 -- Verbindung A:
 -- SELECT 1;
@@ -92,6 +92,6 @@ FROM pg_stat_activity;
 -- -- Die Verbindung ist beendet, die Transaktion zurückgerollt.
 
 -- Kontrolle
-SELECT current_setting('max_connections')::int AS max_verbindungen,
-       count(*) FILTER (WHERE usename = current_user) AS eigene
+SELECT current_setting('max_connections')::int AS max_connections,
+       count(*) FILTER (WHERE usename = current_user) AS own_sessions
 FROM pg_stat_activity;

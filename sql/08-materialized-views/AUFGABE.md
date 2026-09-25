@@ -18,42 +18,42 @@ brauchst du zwei Verbindungen A und B.
 Entferne zu Beginn die Übungsobjekte:
 
 ```sql
-DROP MATERIALIZED VIEW IF EXISTS tickets.team_bericht;
-DROP VIEW IF EXISTS tickets.team_aktuell;
-DELETE FROM tickets.ticket WHERE metadata ? 'kurs_modul08';
+DROP MATERIALIZED VIEW IF EXISTS tickets.team_report;
+DROP VIEW IF EXISTS tickets.team_live;
+DELETE FROM tickets.ticket WHERE metadata ? 'course_module08';
 ```
 
 ## Aufgaben
 
-1. Lege `tickets.team_aktuell` als View an: Tickets je Team und Monat.
+1. Lege `tickets.team_live` als View an: Tickets je Team und Monat.
 
    ```sql
    SET TimeZone = 'UTC';
-   CREATE VIEW tickets.team_aktuell AS
-   SELECT a.team, date_trunc('month', t.created_at)::date AS monat,
-          count(*) AS tickets_erstellt
+   CREATE VIEW tickets.team_live AS
+   SELECT a.team, date_trunc('month', t.created_at)::date AS month,
+          count(*) AS tickets_created
    FROM tickets.ticket t
    JOIN tickets.agent a ON a.id = t.agent_id
    GROUP BY a.team, date_trunc('month', t.created_at);
    ```
 
-   Eine View speichert kein Ergebnis. Jede Abfrage auf `team_aktuell` liest
+   Eine View speichert kein Ergebnis. Jede Abfrage auf `team_live` liest
    den vollständigen Bestand von `ticket` und `agent` zum Zeitpunkt der
    Abfrage neu.
 
-2. Lege `tickets.team_bericht` als Materialized View mit derselben Abfrage
-   an, dazu einen eindeutigen Index auf `(team, monat)`:
+2. Lege `tickets.team_report` als Materialized View mit derselben Abfrage
+   an, dazu einen eindeutigen Index auf `(team, month)`:
 
    ```sql
-   CREATE MATERIALIZED VIEW tickets.team_bericht AS
-   SELECT a.team, date_trunc('month', t.created_at)::date AS monat,
-          count(*) AS tickets_erstellt
+   CREATE MATERIALIZED VIEW tickets.team_report AS
+   SELECT a.team, date_trunc('month', t.created_at)::date AS month,
+          count(*) AS tickets_created
    FROM tickets.ticket t
    JOIN tickets.agent a ON a.id = t.agent_id
    GROUP BY a.team, date_trunc('month', t.created_at);
 
-   CREATE UNIQUE INDEX team_bericht_team_monat_idx
-       ON tickets.team_bericht (team, monat);
+   CREATE UNIQUE INDEX team_report_team_month_idx
+       ON tickets.team_report (team, month);
    ```
 
    Eine Materialized View speichert das Ergebnis physisch wie eine Tabelle.
@@ -65,53 +65,53 @@ DELETE FROM tickets.ticket WHERE metadata ? 'kurs_modul08';
    Materialized View:
 
    ```sql
-   SELECT (SELECT sum(tickets_erstellt) FROM tickets.team_aktuell) AS view_summe,
-          (SELECT sum(tickets_erstellt) FROM tickets.team_bericht) AS matview_summe;
+   SELECT (SELECT sum(tickets_created) FROM tickets.team_live) AS view_total,
+          (SELECT sum(tickets_created) FROM tickets.team_report) AS matview_total;
 
    INSERT INTO tickets.ticket (agent_id, subject, status, priority, metadata, created_at)
-   VALUES (1, 'Nachtrag fuer Teambericht', 'open', 1, '{"kurs_modul08": true}',
+   VALUES (1, 'Nachtrag fuer Teambericht', 'open', 1, '{"course_module08": true}',
            tickets.seed_base_date());
 
-   SELECT (SELECT sum(tickets_erstellt) FROM tickets.team_aktuell) AS view_summe,
-          (SELECT sum(tickets_erstellt) FROM tickets.team_bericht) AS matview_summe;
+   SELECT (SELECT sum(tickets_created) FROM tickets.team_live) AS view_total,
+          (SELECT sum(tickets_created) FROM tickets.team_report) AS matview_total;
    ```
 
    Referenzlauf:
 
    ```text
-    view_summe | matview_summe 
+    view_total | matview_total 
    ------------+---------------
         720159 |        720159
    (1 row)
 
-    view_summe | matview_summe 
+    view_total | matview_total 
    ------------+---------------
         720160 |        720159
    (1 row)
    ```
 
-   `team_aktuell` zeigt den Nachtrag sofort, weil jede Abfrage die
-   zugrunde liegenden Tabellen neu liest. `team_bericht` bleibt beim alten
+   `team_live` zeigt den Nachtrag sofort, weil jede Abfrage die
+   zugrunde liegenden Tabellen neu liest. `team_report` bleibt beim alten
    Stand, bis ein `REFRESH` läuft.
 
-4. Aktualisiere `tickets.team_bericht` gleichzeitig zu einer laufenden
+4. Aktualisiere `tickets.team_report` gleichzeitig zu einer laufenden
    Lesetransaktion. Setze zuerst in Verbindung B `lock_timeout` niedrig,
    damit ein gewöhnlicher `REFRESH` nicht endlos wartet.
 
    In A:
 
    ```sql
-   SET application_name = 'uebung_a';
+   SET application_name = 'exercise_a';
    BEGIN;
-   SELECT count(*) FROM tickets.team_bericht;
+   SELECT count(*) FROM tickets.team_report;
    ```
 
    Die Transaktion bleibt offen. In B:
 
    ```sql
-   SET application_name = 'uebung_b';
+   SET application_name = 'exercise_b';
    SET lock_timeout = '1s';
-   REFRESH MATERIALIZED VIEW tickets.team_bericht;
+   REFRESH MATERIALIZED VIEW tickets.team_report;
    ```
 
    Der gewöhnliche `REFRESH` nimmt eine `ACCESS EXCLUSIVE`-Sperre auf die
@@ -120,7 +120,7 @@ DELETE FROM tickets.ticket WHERE metadata ? 'kurs_modul08';
    (`canceling statement due to lock timeout`) ab. Führe stattdessen aus:
 
    ```sql
-   REFRESH MATERIALIZED VIEW CONCURRENTLY tickets.team_bericht;
+   REFRESH MATERIALIZED VIEW CONCURRENTLY tickets.team_report;
    ```
 
    Diese Anweisung läuft durch, obwohl A seine Transaktion weiterhin offen
@@ -143,8 +143,8 @@ DELETE FROM tickets.ticket WHERE metadata ? 'kurs_modul08';
 ## Ergebnis prüfen
 
 ```sql
-SELECT (SELECT sum(tickets_erstellt) FROM tickets.team_aktuell) AS view_summe,
-       (SELECT sum(tickets_erstellt) FROM tickets.team_bericht) AS matview_summe;
+SELECT (SELECT sum(tickets_created) FROM tickets.team_live) AS view_total,
+       (SELECT sum(tickets_created) FROM tickets.team_report) AS matview_total;
 SELECT matviewname, ispopulated FROM pg_matviews WHERE schemaname = 'tickets';
 RESET TimeZone;
 ```
@@ -152,14 +152,14 @@ RESET TimeZone;
 Referenzlauf nach dem `REFRESH ... CONCURRENTLY` aus Aufgabe 4:
 
 ```text
- view_summe | matview_summe 
+ view_total | matview_total 
 ------------+---------------
      720160 |        720160
 (1 row)
 
- matviewname  | ispopulated 
---------------+-------------
- team_bericht | t
+ matviewname | ispopulated 
+-------------+-------------
+ team_report | t
 (1 row)
 ```
 
@@ -186,8 +186,8 @@ angelegt und noch nie befüllt wurde. `REFRESH MATERIALIZED VIEW
 CONCURRENTLY` verlangt vorhandene Daten und schlägt auf einer solchen
 Materialized View fehl.
 
-`loesung.sql` entfernt zu Beginn `tickets.team_bericht`,
-`tickets.team_aktuell` und den markierten Nachtrag und lässt sich deshalb
+`loesung.sql` entfernt zu Beginn `tickets.team_report`,
+`tickets.team_live` und den markierten Nachtrag und lässt sich deshalb
 mehrfach ausführen. Die Anweisungen der Verbindungen A und B aus Aufgabe 4
 stehen darin als Kommentarblöcke, weil eine einzelne Skriptausführung keine
 zweite Verbindung besitzt.

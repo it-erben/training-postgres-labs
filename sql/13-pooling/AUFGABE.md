@@ -33,12 +33,12 @@ die übrigen Query Tools nach Aufgabe 3.
                   'reserved_connections')
    ORDER BY name;
 
-   SELECT current_setting('max_connections')::int AS max_verbindungen,
-          count(*) FILTER (WHERE usename = current_user) AS eigene
+   SELECT current_setting('max_connections')::int AS max_connections,
+          count(*) FILTER (WHERE usename = current_user) AS own_sessions
    FROM pg_stat_activity;
    ```
 
-   Notiere `eigene`. `pg_stat_activity` hat eine Zeile je Serverprozess.
+   Notiere `own_sessions`. `pg_stat_activity` hat eine Zeile je Serverprozess.
    `usename = current_user` wählt die Verbindungen deiner Rolle `app`,
    gleich aus welchem Werkzeug.
 
@@ -47,14 +47,14 @@ die übrigen Query Tools nach Aufgabe 3.
    Aufgabe 1 und schlüssele die Verbindungen dann auf:
 
    ```sql
-   SELECT application_name, state, count(*) AS anzahl
+   SELECT application_name, state, count(*) AS total
    FROM pg_stat_activity
    WHERE usename = current_user
    GROUP BY application_name, state
    ORDER BY application_name, state;
    ```
 
-   Ordne jede Zeile einem Fenster im pgAdmin zu. Um wie viel ist `eigene`
+   Ordne jede Zeile einem Fenster im pgAdmin zu. Um wie viel ist `own_sessions`
    gestiegen?
 
 3. Eine Anwendung läuft in drei Pods. Jeder Pod hat eine
@@ -62,17 +62,17 @@ die übrigen Query Tools nach Aufgabe 3.
    Anwendung in deinen Cluster passt:
 
    ```sql
-   SELECT 3 * 20 AS bedarf_anwendung,
-          4 * 20 AS bedarf_rolling_update,
+   SELECT 3 * 20 AS app_demand,
+          4 * 20 AS rolling_update_demand,
           current_setting('max_connections')::int
             - current_setting('superuser_reserved_connections')::int
-            - current_setting('reserved_connections')::int AS plaetze_ohne_reserve,
+            - current_setting('reserved_connections')::int AS slots_without_reserve,
           count(*) FILTER (WHERE usename IS NOT NULL
-                             AND datname IS NOT NULL) AS schon_belegt
+                             AND datname IS NOT NULL) AS already_used
    FROM pg_stat_activity;
    ```
 
-   `schon_belegt` zählt alle Sitzungen mit Rolle und Datenbank, auch
+   `already_used` zählt alle Sitzungen mit Rolle und Datenbank, auch
    fremde, denn die Plätze ohne Reserve teilen sich deine Werkzeuge, die
    Anwendung und die Sitzungen, die CloudNativePG selbst öffnet. WAL-Sender
    der Replikate haben keine Datenbank und belegen keinen Platz.
@@ -85,17 +85,17 @@ die übrigen Query Tools nach Aufgabe 3.
 4. Erzeuge in Verbindung A eine offene Transaktion und lass sie offen:
 
    ```sql
-   SET application_name = 'uebung13_a';
+   SET application_name = 'exercise13_a';
    BEGIN;
-   SELECT count(*) AS offene_tickets FROM tickets.ticket WHERE status = 'open';
+   SELECT count(*) AS open_tickets FROM tickets.ticket WHERE status = 'open';
    ```
 
    Suche sie in Verbindung B:
 
    ```sql
    SELECT application_name, state,
-          now() - xact_start AS transaktion_seit,
-          now() - state_change AS untaetig_seit
+          now() - xact_start AS xact_age,
+          now() - state_change AS idle_for
    FROM pg_stat_activity
    WHERE state = 'idle in transaction'
      AND usename = current_user;
@@ -105,14 +105,14 @@ die übrigen Query Tools nach Aufgabe 3.
    nach dem `SELECT` in A:
 
    ```text
-    application_name |        state        | transaktion_seit |  untaetig_seit  
-   ------------------+---------------------+------------------+-----------------
-    uebung13_a       | idle in transaction | 00:00:02.00815   | 00:00:01.944547
+    application_name |        state        |    xact_age     |    idle_for    
+   ------------------+---------------------+-----------------+----------------
+    exercise13_a     | idle in transaction | 00:00:02.002992 | 00:00:02.00152
    (1 row)
    ```
 
    Wiederhole die Abfrage in B nach einer halben Minute und vergleiche
-   `transaktion_seit`. Schließe die Transaktion danach in A mit `COMMIT;`.
+   `xact_age`. Schließe die Transaktion danach in A mit `COMMIT;`.
 
 5. Setze in Verbindung A eine Leerlaufgrenze und öffne wieder eine
    Transaktion:
@@ -120,17 +120,17 @@ die übrigen Query Tools nach Aufgabe 3.
    ```sql
    SET idle_in_transaction_session_timeout = '10s';
    BEGIN;
-   SELECT count(*) AS offene_tickets FROM tickets.ticket WHERE status = 'open';
+   SELECT count(*) AS open_tickets FROM tickets.ticket WHERE status = 'open';
    ```
 
    Warte mindestens 15 Sekunden, ohne in A etwas auszuführen. Frage dann
    in B:
 
    ```sql
-   SELECT count(*) AS sitzungen_a,
-          current_setting('idle_in_transaction_session_timeout') AS grenze_in_b
+   SELECT count(*) AS sessions_a,
+          current_setting('idle_in_transaction_session_timeout') AS timeout_in_b
    FROM pg_stat_activity
-   WHERE application_name = 'uebung13_a';
+   WHERE application_name = 'exercise13_a';
    ```
 
    Führe anschließend in A `SELECT 1;` aus und lies die Meldung.
@@ -141,8 +141,8 @@ Im ersten Query Tool nach Aufgabe 2, solange die drei weiteren Query Tools
 offen sind:
 
 ```sql
-SELECT current_setting('max_connections')::int AS max_verbindungen,
-       count(*) FILTER (WHERE usename = current_user) AS eigene
+SELECT current_setting('max_connections')::int AS max_connections,
+       count(*) FILTER (WHERE usename = current_user) AS own_sessions
 FROM pg_stat_activity;
 ```
 
@@ -150,32 +150,32 @@ Referenzlauf mit psql (PostgreSQL 18.6, lokal), vor Aufgabe 2 mit einer
 Sitzung:
 
 ```text
- max_verbindungen | eigene 
-------------------+--------
-              100 |      1
+ max_connections | own_sessions 
+-----------------+--------------
+             100 |            1
 (1 row)
 ```
 
 Derselbe Lauf mit einer Sitzung und drei weiteren offenen Sitzungen:
 
 ```text
- max_verbindungen | eigene 
-------------------+--------
-              100 |      4
+ max_connections | own_sessions 
+-----------------+--------------
+             100 |            4
 (1 row)
 ```
 
-`eigene` muss nach Aufgabe 2 um mindestens drei höher sein als nach
+`own_sessions` muss nach Aufgabe 2 um mindestens drei höher sein als nach
 Aufgabe 1. Im pgAdmin liegt der Wert meist höher als im Referenzlauf,
-weil der Objektbaum eine eigene Verbindung hält. `max_verbindungen` zeigt
+weil der Objektbaum eine eigene Verbindung hält. `max_connections` zeigt
 den Wert deines Clusters.
 
 Aufgabe 5 endete im Referenzlauf in B mit:
 
 ```text
- sitzungen_a | grenze_in_b 
--------------+-------------
-           0 | 0
+ sessions_a | timeout_in_b 
+------------+--------------
+          0 | 0
 (1 row)
 ```
 
@@ -186,7 +186,7 @@ FATAL:  25P03: terminating connection due to idle-in-transaction timeout
 ```
 
 Ohne die Grenze war die Sitzung von A nach 13 Sekunden noch vorhanden
-(`sitzungen_a` 1).
+(`sessions_a` 1).
 
 ## Hinweise
 

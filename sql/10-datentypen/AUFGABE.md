@@ -28,7 +28,7 @@ CREATE TABLE tickets.legacy_ticket (
     subject text,
     closed smallint,
     created_at timestamp,
-    betrag double precision
+    amount double precision
 );
 INSERT INTO tickets.legacy_ticket VALUES
     (101, 'Login schlägt fehl',    0, '2026-08-21 12:00:00',   19.99),
@@ -44,7 +44,7 @@ Ausgangsstand wieder her.
 
 ## Aufgaben
 
-1. Lege `tickets.ticket_neu` mit diesen Spalten an:
+1. Lege `tickets.ticket_new` mit diesen Spalten an:
 
    | Spalte       | Typ und Regel                                     |
    | ------------ | ------------------------------------------------- |
@@ -53,33 +53,33 @@ Ausgangsstand wieder her.
    | `subject`    | `text NOT NULL`                                   |
    | `is_closed`  | `boolean NOT NULL`                                |
    | `created_at` | `timestamptz NOT NULL`                            |
-   | `betrag`     | `numeric(12,2) NOT NULL`                          |
+   | `amount`     | `numeric(12,2) NOT NULL`                          |
 
 2. Übernimm alle sechs Zeilen mit einem einzigen `INSERT ... SELECT`.
    `id` erzeugt die Identity, `legacy_id` erhält die alte ID. Wandle
    `closed` mit `closed = 1` in einen Wahrheitswert, `created_at` mit
-   `created_at AT TIME ZONE 'UTC'` in einen Zeitpunkt und `betrag` mit
-   `round(betrag::numeric, 2)` in einen Dezimalwert.
+   `created_at AT TIME ZONE 'UTC'` in einen Zeitpunkt und `amount` mit
+   `round(amount::numeric, 2)` in einen Dezimalwert.
 3. Zeige, dass ein bloßer Cast `created_at::timestamptz` von der
    Sitzungszeitzone abhängt. Gib je Zeile `id`, `created_at`, den Cast
-   `created_at::timestamptz` als `cast_ergebnis`, den Zeitpunkt
-   `created_at AT TIME ZONE 'UTC'` als `zeitpunkt_utc` und die Differenz
-   beider als `abweichung` aus. Führe die Abfrage einmal nach
+   `created_at::timestamptz` als `cast_result`, den Zeitpunkt
+   `created_at AT TIME ZONE 'UTC'` als `instant_utc` und die Differenz
+   beider als `deviation` aus. Führe die Abfrage einmal nach
    `SET TimeZone = 'UTC';` und einmal nach
    `SET TimeZone = 'Europe/Berlin';` aus. Setze die Zeitzone danach mit
    `RESET TimeZone;` zurück.
-4. Vergleiche die Summe von `ticket_neu.betrag` mit der Summe von
-   `legacy_ticket.betrag`.
+4. Vergleiche die Summe von `ticket_new.amount` mit der Summe von
+   `legacy_ticket.amount`.
 
 ## Ergebnis prüfen
 
 ```sql
 SET TimeZone = 'UTC';
-SELECT legacy_id, is_closed, created_at, betrag
-FROM tickets.ticket_neu ORDER BY legacy_id;
-SELECT sum(betrag) AS numeric_summe,
-       (SELECT sum(betrag) FROM tickets.legacy_ticket) AS double_summe
-FROM tickets.ticket_neu;
+SELECT legacy_id, is_closed, created_at, amount
+FROM tickets.ticket_new ORDER BY legacy_id;
+SELECT sum(amount) AS numeric_sum,
+       (SELECT sum(amount) FROM tickets.legacy_ticket) AS double_sum
+FROM tickets.ticket_new;
 RESET TimeZone;
 ```
 
@@ -87,7 +87,7 @@ Die erste Abfrage zeigt die sechs übernommenen Tickets. Die Zeitpunkte
 tragen `+00` und nennen dieselbe Uhrzeit wie `legacy_ticket.created_at`:
 
 ```text
- legacy_id | is_closed |       created_at       | betrag
+ legacy_id | is_closed |       created_at       | amount
 -----------+-----------+------------------------+---------
        101 | f         | 2026-08-21 12:00:00+00 |   19.99
        102 | t         | 2025-12-31 23:30:00+00 |    0.10
@@ -101,19 +101,19 @@ tragen `+00` und nennen dieselbe Uhrzeit wie `legacy_ticket.created_at`:
 Die zweite vergleicht die Summen:
 
 ```text
- numeric_summe |    double_summe
----------------+--------------------
-       1275.19 | 1275.1899999999998
+ numeric_sum |     double_sum
+-------------+--------------------
+     1275.19 | 1275.1899999999998
 (1 row)
 ```
 
 Aufgabe 3 liefert unter `UTC` für jede Zeile die Abweichung `00:00:00`;
-`cast_ergebnis` und `zeitpunkt_utc` sind dort gleich. Unter
+`cast_result` und `instant_utc` sind dort gleich. Unter
 `Europe/Berlin` weicht der Cast ab:
 
 ```text
- id  |     created_at      |     cast_ergebnis      |     zeitpunkt_utc      | abweichung
------+---------------------+------------------------+------------------------+------------
+ id  |     created_at      |      cast_result       |      instant_utc       | deviation
+-----+---------------------+------------------------+------------------------+-----------
  101 | 2026-08-21 12:00:00 | 2026-08-21 12:00:00+02 | 2026-08-21 14:00:00+02 | -02:00:00
  102 | 2025-12-31 23:30:00 | 2025-12-31 23:30:00+01 | 2026-01-01 00:30:00+01 | -01:00:00
  103 | 2025-03-30 00:30:00 | 2025-03-30 00:30:00+01 | 2025-03-30 01:30:00+01 | -01:00:00
@@ -142,10 +142,10 @@ darin nicht exakt ablegen, deshalb weicht die Summe der sechs Beträge in
 der letzten Stelle ab. `numeric(12,2)` rechnet dezimal und liefert 1275.19.
 
 Nach `DROP TABLE` und erneutem Anlegen beginnt die Identity wieder bei 1.
-`information_schema.columns` zeigt für `ticket_neu.id` den Wert
+`information_schema.columns` zeigt für `ticket_new.id` den Wert
 `is_identity = YES` und für `created_at` den Typ
 `timestamp with time zone`.
 
-`loesung.sql` entfernt zu Beginn `ticket_neu`, legt `legacy_ticket` mit
+`loesung.sql` entfernt zu Beginn `ticket_new`, legt `legacy_ticket` mit
 dem Block aus dem Ausgangsstand neu an und lässt sich deshalb mehrfach
 und ohne vorherige Schritte ausführen.

@@ -17,14 +17,14 @@ absichtlich einen Fehlerzustand an. Mit eingeschaltetem Auto rollback würde
 pgAdmin die gesamte Transaktion vorzeitig zurückrollen. Führe jeden
 Codeblock für sich aus: markieren, F5, dann der nächste Block.
 
-Lege zu Beginn `tickets.pruefung` an. Sie hält die Antworten der fünf
+Lege zu Beginn `tickets.verification` an. Sie hält die Antworten der fünf
 Aufgaben fest:
 
 ```sql
-DROP TABLE IF EXISTS tickets.pruefung;
-CREATE TABLE tickets.pruefung (
-    nr int PRIMARY KEY,
-    ergebnis text
+DROP TABLE IF EXISTS tickets.verification;
+CREATE TABLE tickets.verification (
+    num int PRIMARY KEY,
+    result text
 );
 ```
 
@@ -33,10 +33,10 @@ leerem Text und NULL in Aufgabe 1 richtest du deshalb eine eigene kleine
 Tabelle ein, deren Textspalte NULL zulässt:
 
 ```sql
-DROP TABLE IF EXISTS tickets.migrationstext;
-CREATE TABLE tickets.migrationstext (
+DROP TABLE IF EXISTS tickets.migration_text;
+CREATE TABLE tickets.migration_text (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    wert text
+    value text
 );
 ```
 
@@ -48,7 +48,7 @@ CREATE TABLE tickets.migrationstext (
    Migration, die vorhandene Schlüssel aus einem Altsystem übernimmt:
 
    ```sql
-   INSERT INTO tickets.migrationstext (id, wert) OVERRIDING SYSTEM VALUE VALUES
+   INSERT INTO tickets.migration_text (id, value) OVERRIDING SYSTEM VALUE VALUES
        (900001, ''),
        (900002, ''),
        (900003, ''),
@@ -56,21 +56,21 @@ CREATE TABLE tickets.migrationstext (
    ```
 
    Zähle anschließend, wie viele Zeilen eine leere Zeichenkette und wie
-   viele NULL enthalten, und schreibe das Ergebnis nach `tickets.pruefung`:
+   viele NULL enthalten, und schreibe das Ergebnis nach `tickets.verification`:
 
    ```sql
-   INSERT INTO tickets.pruefung (nr, ergebnis)
-   SELECT 1, 'leer=' || count(*) FILTER (WHERE wert = '')
-              || ', null=' || count(*) FILTER (WHERE wert IS NULL)
-   FROM tickets.migrationstext;
+   INSERT INTO tickets.verification (num, result)
+   SELECT 1, 'empty=' || count(*) FILTER (WHERE value = '')
+              || ', null=' || count(*) FILTER (WHERE value IS NULL)
+   FROM tickets.migration_text;
    ```
 
 2. Vergleiche den Verkettungsoperator `||` mit der Funktion `concat()` für
    dieselbe NULL-Eingabe:
 
    ```sql
-   INSERT INTO tickets.pruefung (nr, ergebnis)
-   SELECT 2, 'verkettung=' || coalesce('a' || NULL, '<NULL>')
+   INSERT INTO tickets.verification (num, result)
+   SELECT 2, 'operator=' || coalesce('a' || NULL, '<NULL>')
               || ', concat=' || coalesce(concat('a', NULL), '<NULL>');
    ```
 
@@ -88,24 +88,24 @@ CREATE TABLE tickets.migrationstext (
    Prüfe danach mit `to_regclass`, ob die Tabelle noch existiert:
 
    ```sql
-   INSERT INTO tickets.pruefung (nr, ergebnis)
-   VALUES (3, 'objekt_entfernt=' || (to_regclass('tickets.ddl_test') IS NULL)::text);
+   INSERT INTO tickets.verification (num, result)
+   VALUES (3, 'object_dropped=' || (to_regclass('tickets.ddl_test') IS NULL)::text);
    ```
 
-4. Lege `tickets.buchungstest` an und löse einen Fehler in einer laufenden
+4. Lege `tickets.booking_test` an und löse einen Fehler in einer laufenden
    Transaktion aus. Beobachte den SQLSTATE des Fehlers und den SQLSTATE der
    danach folgenden Anweisung, bevor du mit `ROLLBACK TO SAVEPOINT`
    fortsetzt. Tabelle anlegen, Transaktion und Savepoint öffnen:
 
    ```sql
-   CREATE TABLE tickets.buchungstest (
+   CREATE TABLE tickets.booking_test (
        id integer PRIMARY KEY,
-       betrag numeric(10, 2) NOT NULL
+       amount numeric(10, 2) NOT NULL
    );
 
    BEGIN;
-   INSERT INTO tickets.buchungstest VALUES (1, 10.00);
-   SAVEPOINT vor_fehler;
+   INSERT INTO tickets.booking_test VALUES (1, 10.00);
+   SAVEPOINT before_error;
    ```
 
    Führe die beiden nächsten Anweisungen einzeln aus. Nach einem Fehler
@@ -113,11 +113,11 @@ CREATE TABLE tickets.migrationstext (
    liefe gar nicht mehr.
 
    ```sql
-   INSERT INTO tickets.buchungstest VALUES (1, 20.00);
+   INSERT INTO tickets.booking_test VALUES (1, 20.00);
    ```
 
    ```sql
-   SELECT count(*) FROM tickets.buchungstest;
+   SELECT count(*) FROM tickets.booking_test;
    ```
 
    Die zweite `INSERT`-Anweisung verletzt den Primärschlüssel: SQLSTATE
@@ -128,17 +128,17 @@ CREATE TABLE tickets.migrationstext (
    wurde, bleibt dabei erhalten:
 
    ```sql
-   ROLLBACK TO SAVEPOINT vor_fehler;
-   INSERT INTO tickets.buchungstest VALUES (2, 30.00);
+   ROLLBACK TO SAVEPOINT before_error;
+   INSERT INTO tickets.booking_test VALUES (2, 30.00);
    COMMIT;
    ```
 
-   Schreibe den Endstand nach `tickets.pruefung`:
+   Schreibe den Endstand nach `tickets.verification`:
 
    ```sql
-   INSERT INTO tickets.pruefung (nr, ergebnis)
-   SELECT 4, string_agg(id || ':' || betrag, ', ' ORDER BY id)
-   FROM tickets.buchungstest;
+   INSERT INTO tickets.verification (num, result)
+   SELECT 4, string_agg(id || ':' || amount, ', ' ORDER BY id)
+   FROM tickets.booking_test;
    ```
 
 5. Lege eine Tabelle mit einem in Anführungszeichen geschriebenen,
@@ -146,51 +146,51 @@ CREATE TABLE tickets.migrationstext (
    Anführungszeichen darauf zu:
 
    ```sql
-   CREATE TABLE tickets."Kunde" (id integer PRIMARY KEY, name text);
-   INSERT INTO tickets."Kunde" VALUES (1, 'Muster GmbH');
+   CREATE TABLE tickets."Customer" (id integer PRIMARY KEY, name text);
+   INSERT INTO tickets."Customer" VALUES (1, 'Muster GmbH');
    ```
 
    Führe die Abfrage in einer eigenen Ausführung aus. In derselben
    Markierung würde ihr Fehler auch das `CREATE TABLE` zurückrollen.
 
    ```sql
-   SELECT * FROM tickets.kunde;
+   SELECT * FROM tickets.customer;
    ```
 
    Ohne Anführungszeichen faltet PostgreSQL den Namen auf Kleinschreibung.
-   Angelegt wurde aber `Kunde` mit großem K, deshalb schlägt die Abfrage mit
+   Angelegt wurde aber `Customer` mit großem C, deshalb schlägt die Abfrage mit
    SQLSTATE `42P01` fehl. Halte fest, dass die Tabelle unter ihrem richtigen
    Namen weiterhin existiert:
 
    ```sql
-   INSERT INTO tickets.pruefung (nr, ergebnis)
-   VALUES (5, 'objekt_vorhanden=' || (to_regclass('tickets."Kunde"') IS NOT NULL)::text);
+   INSERT INTO tickets.verification (num, result)
+   VALUES (5, 'object_exists=' || (to_regclass('tickets."Customer"') IS NOT NULL)::text);
    ```
 
 ## Ergebnis prüfen
 
 ```sql
-SELECT nr, ergebnis FROM tickets.pruefung ORDER BY nr;
+SELECT num, result FROM tickets.verification ORDER BY num;
 ```
 
 Referenzlauf:
 
 ```text
- nr |          ergebnis           
-----+-----------------------------
-  1 | leer=3, null=1
-  2 | verkettung=<NULL>, concat=a
-  3 | objekt_entfernt=true
-  4 | 1:10.00, 2:30.00
-  5 | objekt_vorhanden=true
+ num |          result           
+-----+---------------------------
+   1 | empty=3, null=1
+   2 | operator=<NULL>, concat=a
+   3 | object_dropped=true
+   4 | 1:10.00, 2:30.00
+   5 | object_exists=true
 (5 rows)
 ```
 
 ## Hinweise
 
 Aufgabe 1 zählt mit `count(*) FILTER (WHERE ...)`, also Zeilen, für die
-die Bedingung zutrifft. `wert = ''` ist für die NULL-Zeile nicht wahr,
-deshalb zählt nur `wert IS NULL` sie mit. `count(wert)` ergäbe 3, weil
+die Bedingung zutrifft. `value = ''` ist für die NULL-Zeile nicht wahr,
+deshalb zählt nur `value IS NULL` sie mit. `count(value)` ergäbe 3, weil
 `count(spalte)` NULL-Werte überspringt. Die Tabelle ist eigens angelegt,
 weil `subject` in `tickets.ticket` `NOT NULL` ist und dort keine NULL-Zeile
 eingefügt werden kann. In einer Oracle-`VARCHAR2`-Spalte ist die leere
@@ -215,14 +215,14 @@ läuft die Transaktion weiter. Ein Oracle-Savepoint in einem PL/SQL-Block
 funktioniert ähnlich.
 
 PostgreSQL faltet einen unquotierten Bezeichner auf Kleinschreibung, Oracle
-auf Großschreibung. `"Kunde"` bewahrt die
+auf Großschreibung. `"Customer"` bewahrt die
 Schreibweise, verlangt danach aber bei jedem Zugriff genau diese
-Schreibweise in Anführungszeichen. Der Name `kunde` bezeichnet ein anderes,
+Schreibweise in Anführungszeichen. Der Name `customer` bezeichnet ein anderes,
 nicht vorhandenes Objekt.
 
 `loesung.sql` läuft abschnittsweise: Jeder Block ab `-- Abschnitt` wird
 einzeln markiert und ausgeführt. Die drei Anweisungen mit erwartetem Fehler
 stehen dort als Kommentar mit ihrem SQLSTATE. Abschnitt 1 entfernt
-`tickets.pruefung`, `tickets.migrationstext`, `tickets.ddl_test`,
-`tickets.buchungstest` und `tickets."Kunde"`. Die Datei lässt sich deshalb
+`tickets.verification`, `tickets.migration_text`, `tickets.ddl_test`,
+`tickets.booking_test` und `tickets."Customer"`. Die Datei lässt sich deshalb
 mehrfach ausführen.

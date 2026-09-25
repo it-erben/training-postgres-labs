@@ -14,7 +14,7 @@ eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus.
 
 Drei Zugriffe stehen im Mittelpunkt: offene Tickets von Agents aus dem Team
-Technik, Tickets mit dem Metadaten-Schlüssel `escalated` und Kommentare
+`Technical`, Tickets mit dem Metadaten-Schlüssel `escalated` und Kommentare
 eines Zeitfensters von sieben Tagen.
 
 ## Aufgaben
@@ -27,7 +27,7 @@ eines Zeitfensters von sieben Tagen.
    SET TimeZone = 'UTC';
    EXPLAIN (ANALYZE, BUFFERS)
    SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
-   WHERE a.team = 'Technik' AND t.status = 'open';
+   WHERE a.team = 'Technical' AND t.status = 'open';
    EXPLAIN (ANALYZE, BUFFERS)
    SELECT id FROM ticket WHERE metadata ? 'escalated';
    EXPLAIN (ANALYZE, BUFFERS)
@@ -63,7 +63,7 @@ eines Zeitfensters von sieben Tagen.
 2. Lege für jeden Zugriff einen Index an:
 
    ```sql
-   CREATE INDEX ticket_offen_idx
+   CREATE INDEX ticket_open_idx
        ON ticket (agent_id) WHERE status <> 'closed';
    CREATE INDEX ticket_metadata_gin
        ON ticket USING gin (metadata);
@@ -73,14 +73,14 @@ eines Zeitfensters von sieben Tagen.
    ANALYZE comment;
    ```
 
-   `ticket_offen_idx` ist ein Teilindex: Er enthält nur Zeilen, deren Status
+   `ticket_open_idx` ist ein Teilindex: Er enthält nur Zeilen, deren Status
    nicht `closed` ist, und passt damit zur Filterbedingung `status = 'open'`.
    `ticket_metadata_gin` unterstützt den Existenzoperator `?` auf `jsonb`,
    der prüft, ob ein Schlüssel auf oberster Ebene vorkommt.
    `comment_created_brin` fasst `created_at` blockweise zusammen.
 
 3. Vergleiche die drei Pläne erneut mit denselben `EXPLAIN`-Abfragen wie in
-   Aufgabe 1. `ticket_offen_idx` und `ticket_metadata_gin` erscheinen
+   Aufgabe 1. `ticket_open_idx` und `ticket_metadata_gin` erscheinen
    zuverlässig als `Bitmap Index Scan`. `comment_created_brin` bleibt im
    Referenzlauf ungenutzt: Der Plan zeigt weiterhin einen
    `Parallel Seq Scan on comment`. Notiere, welcher Indexname in welchem
@@ -93,8 +93,8 @@ eines Zeitfensters von sieben Tagen.
    ```sql
    SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
    FROM pg_stat_user_indexes WHERE schemaname = 'tickets' ORDER BY indexrelname;
-   SELECT pg_size_pretty(pg_relation_size('tickets.ticket')) AS ticket_tabelle,
-          pg_size_pretty(pg_relation_size('tickets.comment')) AS comment_tabelle;
+   SELECT pg_size_pretty(pg_relation_size('tickets.ticket')) AS ticket_table,
+          pg_size_pretty(pg_relation_size('tickets.comment')) AS comment_table;
    ```
 
 5. Gegenprobe: Weite das Zeitfenster der Kommentarabfrage auf ein ganzes
@@ -115,7 +115,7 @@ eines Zeitfensters von sieben Tagen.
 SET search_path = tickets;
 SET TimeZone = 'UTC';
 EXPLAIN (COSTS OFF) SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
-WHERE a.team = 'Technik' AND t.status = 'open';
+WHERE a.team = 'Technical' AND t.status = 'open';
 EXPLAIN (COSTS OFF) SELECT id FROM ticket WHERE metadata ? 'escalated';
 EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
 WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
@@ -132,10 +132,10 @@ Referenzlauf:
    ->  Bitmap Heap Scan on ticket t
          Recheck Cond: (status <> 'closed'::text)
          Filter: (status = 'open'::text)
-         ->  Bitmap Index Scan on ticket_offen_idx
+         ->  Bitmap Index Scan on ticket_open_idx
    ->  Hash
          ->  Seq Scan on agent a
-               Filter: (team = 'Technik'::text)
+               Filter: (team = 'Technical'::text)
 (9 rows)
 
  Bitmap Heap Scan on ticket
@@ -153,13 +153,13 @@ Referenzlauf:
 (6 rows)
 
      indexrelname     | pg_size_pretty
------------------------+----------------
+----------------------+----------------
  agent_email_key      | 16 kB
  agent_pkey           | 16 kB
  comment_created_brin | 24 kB
  comment_pkey         | 43 MB
- ticket_metadata_gin  | 6168 kB
- ticket_offen_idx     | 296 kB
+ ticket_metadata_gin  | 6160 kB
+ ticket_open_idx      | 296 kB
  ticket_pkey          | 17 MB
 (7 rows)
 ```
@@ -167,9 +167,9 @@ Referenzlauf:
 Zusätzlich zur Tabellengröße gemessen:
 
 ```text
- ticket_tabelle | comment_tabelle
-----------------+-----------------
- 154 MB         | 208 MB
+ ticket_table | comment_table
+--------------+---------------
+ 154 MB       | 208 MB
 (1 row)
 ```
 
@@ -179,7 +179,7 @@ weiterhin für günstiger. Warum, erklärt der Abschnitt "Hinweise".
 
 ## Hinweise
 
-`ticket_offen_idx` und `ticket_metadata_gin` verkleinern die betroffenen
+`ticket_open_idx` und `ticket_metadata_gin` verkleinern die betroffenen
 Zugriffe deutlich. Ein `Bitmap Index Scan` liest nur die passenden
 Einträge. Vorher las ein Seq Scan die gesamte Tabelle.
 

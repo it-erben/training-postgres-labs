@@ -14,21 +14,21 @@ eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus. Aufgabe 3 braucht
 eine zweite Verbindung.
 
-Lege zu Beginn `tickets.messung` an. Sie hält die Werte aus den Aufgaben 2,
+Lege zu Beginn `tickets.measurement` an. Sie hält die Werte aus den Aufgaben 2,
 4 und 5 fest:
 
 ```sql
-DROP TABLE IF EXISTS tickets.messung;
-CREATE TABLE tickets.messung (
-    schritt text PRIMARY KEY,
-    wert text
+DROP TABLE IF EXISTS tickets.measurement;
+CREATE TABLE tickets.measurement (
+    step text PRIMARY KEY,
+    value text
 );
 ```
 
 ## Aufgaben
 
 1. Öffne ein zweites Query Tool und setze dort einen eigenen Namen, etwa
-   `SET application_name = 'uebung-b';`. Suche beide Sitzungen in
+   `SET application_name = 'exercise-b';`. Suche beide Sitzungen in
    `pg_stat_activity`:
 
    ```sql
@@ -44,8 +44,8 @@ CREATE TABLE tickets.messung (
    ```text
     application_name |  backend_type  | state  
    ------------------+----------------+--------
-    uebung-a         | client backend | active
-    uebung-b         | client backend | idle
+    exercise-a       | client backend | active
+    exercise-b       | client backend | idle
    (2 rows)
    ```
 
@@ -77,8 +77,8 @@ CREATE TABLE tickets.messung (
    Halte fest, ob sich `ctid` geändert hat:
 
    ```sql
-   INSERT INTO tickets.messung (schritt, wert)
-   VALUES ('ctid_geaendert', 'true');
+   INSERT INTO tickets.measurement (step, value)
+   VALUES ('ctid_changed', 'true');
    ```
 
 3. Öffne eine zweite Verbindung B neben deiner Verbindung A. In A:
@@ -136,8 +136,8 @@ CREATE TABLE tickets.messung (
    deshalb erst in der nächsten Ausführung und halte den Wert fest:
 
    ```sql
-   INSERT INTO tickets.messung (schritt, wert)
-   SELECT 'tote_tupel_nach_update', n_dead_tup::text
+   INSERT INTO tickets.measurement (step, value)
+   SELECT 'dead_tuples_after_update', n_dead_tup::text
    FROM pg_stat_user_tables WHERE schemaname = 'tickets' AND relname = 'ticket';
    SELECT n_dead_tup FROM pg_stat_user_tables
    WHERE schemaname = 'tickets' AND relname = 'ticket';
@@ -152,8 +152,8 @@ CREATE TABLE tickets.messung (
    Lies erneut und halte den Wert fest:
 
    ```sql
-   INSERT INTO tickets.messung (schritt, wert)
-   SELECT 'tote_tupel_nach_vacuum', n_dead_tup::text
+   INSERT INTO tickets.measurement (step, value)
+   SELECT 'dead_tuples_after_vacuum', n_dead_tup::text
    FROM pg_stat_user_tables WHERE schemaname = 'tickets' AND relname = 'ticket';
    SELECT n_dead_tup FROM pg_stat_user_tables
    WHERE schemaname = 'tickets' AND relname = 'ticket';
@@ -180,31 +180,31 @@ CREATE TABLE tickets.messung (
    Halte das Ergebnis fest:
 
    ```sql
-   INSERT INTO tickets.messung (schritt, wert)
+   INSERT INTO tickets.measurement (step, value)
    VALUES ('wal_bytes', '<gemessene Bytes>');
    ```
 
 ## Ergebnis prüfen
 
 ```sql
-SELECT schritt, wert FROM tickets.messung ORDER BY schritt;
+SELECT step, value FROM tickets.measurement ORDER BY step;
 ```
 
 Referenzlauf:
 
 ```text
-        schritt         | wert  
-------------------------+-------
- ctid_geaendert         | true
- tote_tupel_nach_update | 10002
- tote_tupel_nach_vacuum | 0
- wal_bytes              | 120
+           step           | value 
+--------------------------+-------
+ ctid_changed             | true
+ dead_tuples_after_update | 10000
+ dead_tuples_after_vacuum | 0
+ wal_bytes                | 4560
 (4 rows)
 ```
 
-`ctid_geaendert` muss `true` sein, `tote_tupel_nach_update` größer als 0,
-`tote_tupel_nach_vacuum` gleich 0 und `wal_bytes` größer als 0. Die genauen
-Zahlen bei `tote_tupel_nach_update` und `wal_bytes` weichen von Lauf zu Lauf
+`ctid_changed` muss `true` sein, `dead_tuples_after_update` größer als 0,
+`dead_tuples_after_vacuum` gleich 0 und `wal_bytes` größer als 0. Die genauen
+Zahlen bei `dead_tuples_after_update` und `wal_bytes` weichen von Lauf zu Lauf
 ab. Sie hängen vom Ausgangszustand des WAL und von vorher gelaufenen
 Transaktionen ab.
 
@@ -237,6 +237,6 @@ immer eine neue Zeilenversion an, auch wenn sich der gespeicherte Wert nicht
 einzeln markiert und ausgeführt. Aufgabe 3 steht als Kommentar mit den
 Blöcken `Verbindung A` und `Verbindung B`, weil eine einzelne
 Skriptausführung keine zweite Verbindung hat. Abschnitt 1 legt
-`tickets.messung` bei jedem Lauf neu an, deshalb darfst du die Datei
-mehrfach ausführen. Die Werte in `tickets.messung` können sich dabei von
+`tickets.measurement` bei jedem Lauf neu an, deshalb darfst du die Datei
+mehrfach ausführen. Die Werte in `tickets.measurement` können sich dabei von
 Lauf zu Lauf unterscheiden.

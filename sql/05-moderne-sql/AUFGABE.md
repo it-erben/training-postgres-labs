@@ -17,57 +17,57 @@ Entferne zu Beginn die vier Ergebnistabellen, damit sich die Übung
 wiederholen lässt:
 
 ```sql
-DROP TABLE IF EXISTS tickets.ergebnis_1;
-DROP TABLE IF EXISTS tickets.ergebnis_2;
-DROP TABLE IF EXISTS tickets.ergebnis_3;
-DROP TABLE IF EXISTS tickets.ergebnis_4;
+DROP TABLE IF EXISTS tickets.result_1;
+DROP TABLE IF EXISTS tickets.result_2;
+DROP TABLE IF EXISTS tickets.result_3;
+DROP TABLE IF EXISTS tickets.result_4;
 ```
 
 ## Aufgaben
 
-1. Erzeuge `tickets.ergebnis_1(team, monat, tickets_erstellt, laufende_summe)`:
+1. Erzeuge `tickets.result_1(team, month, tickets_created, running_total)`:
    Tickets je Team und Monat zählen, danach je Team über die Monate
    kumulieren.
 
    ```sql
    SET TimeZone = 'UTC';
-   CREATE TABLE tickets.ergebnis_1 AS
-   WITH monatswerte AS (
+   CREATE TABLE tickets.result_1 AS
+   WITH monthly_counts AS (
        SELECT a.team,
-              date_trunc('month', t.created_at)::date AS monat,
-              count(*) AS tickets_erstellt
+              date_trunc('month', t.created_at)::date AS month,
+              count(*) AS tickets_created
        FROM tickets.ticket t
        JOIN tickets.agent a ON a.id = t.agent_id
        GROUP BY a.team, date_trunc('month', t.created_at)
    )
-   SELECT team, monat, tickets_erstellt,
-          sum(tickets_erstellt) OVER (PARTITION BY team ORDER BY monat) AS laufende_summe
-   FROM monatswerte;
+   SELECT team, month, tickets_created,
+          sum(tickets_created) OVER (PARTITION BY team ORDER BY month) AS running_total
+   FROM monthly_counts;
    ```
 
    Der innere `JOIN` verbindet nur zugeordnete Tickets mit ihrem Agenten und
    damit ihrem Team. Ein Ticket ohne `agent_id` fließt nicht ein.
    `date_trunc('month', ...)` rundet den Zeitpunkt auf den Monatsanfang. Die
-   Fensterfunktion `sum() OVER (PARTITION BY team ORDER BY monat)` läuft
+   Fensterfunktion `sum() OVER (PARTITION BY team ORDER BY month)` läuft
    ohne eigene Rahmenklausel und summiert deshalb per Voreinstellung von der
    ersten Zeile der Partition bis zur aktuellen Zeile.
 
-2. Erzeuge `tickets.ergebnis_2(agent_id, ticket_id, closed_at, rang)` mit
+2. Erzeuge `tickets.result_2(agent_id, ticket_id, closed_at, rank_no)` mit
    höchstens drei geschlossenen Tickets je Agent, sortiert nach
    `closed_at DESC, id DESC`:
 
    ```sql
-   CREATE TABLE tickets.ergebnis_2 AS
-   SELECT agent_id, id AS ticket_id, closed_at, rang
+   CREATE TABLE tickets.result_2 AS
+   SELECT agent_id, id AS ticket_id, closed_at, rank_no
    FROM (
        SELECT agent_id, id, closed_at,
               row_number() OVER (
                   PARTITION BY agent_id ORDER BY closed_at DESC, id DESC
-              ) AS rang
+              ) AS rank_no
        FROM tickets.ticket
        WHERE status = 'closed' AND agent_id IS NOT NULL
-   ) eingeordnet
-   WHERE rang <= 3;
+   ) ranked
+   WHERE rank_no <= 3;
    ```
 
    Mehrere hundert Tickets je Agent teilen sich denselben letzten
@@ -76,24 +76,24 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    zweitem Sortierkriterium ist die Rangfolge auch bei gleicher Zeit
    eindeutig.
 
-3. Erzeuge `tickets.ergebnis_3(comment_id, parent_id, tiefe, author)`
+3. Erzeuge `tickets.result_3(comment_id, parent_id, depth, author)`
    rekursiv aus dem Kommentarbaum von Ticket 9. Die Wurzel erhält Tiefe 1:
 
    ```sql
-   CREATE TABLE tickets.ergebnis_3 AS
-   WITH RECURSIVE baum AS (
-       SELECT id AS comment_id, parent_id, author, 1 AS tiefe
+   CREATE TABLE tickets.result_3 AS
+   WITH RECURSIVE tree AS (
+       SELECT id AS comment_id, parent_id, author, 1 AS depth
        FROM tickets.comment
        WHERE ticket_id = 9 AND parent_id IS NULL
 
        UNION ALL
 
-       SELECT c.id, c.parent_id, c.author, b.tiefe + 1
+       SELECT c.id, c.parent_id, c.author, b.depth + 1
        FROM tickets.comment c
-       JOIN baum b ON c.parent_id = b.comment_id
+       JOIN tree b ON c.parent_id = b.comment_id
        WHERE c.ticket_id = 9
    )
-   SELECT comment_id, parent_id, tiefe, author FROM baum;
+   SELECT comment_id, parent_id, depth, author FROM tree;
    ```
 
    Der nicht rekursive Teil liefert die Wurzel des Baums, der rekursive Teil
@@ -102,7 +102,7 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    wie ihr Elternkommentar. `WHERE c.ticket_id = 9` im rekursiven Teil
    schließt solche Antworten aus anderen Tickets aus.
 
-4. Erzeuge `tickets.ergebnis_4(ticket_id, subject, csat_score)` mit einem
+4. Erzeuge `tickets.result_4(ticket_id, subject, csat_score)` mit einem
    SQL/JSON-Pfadausdruck und lege dafür einen GIN-Index auf `metadata` an:
 
    ```sql
@@ -110,7 +110,7 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
        ON tickets.ticket USING gin (metadata);
    ANALYZE tickets.ticket;
 
-   CREATE TABLE tickets.ergebnis_4 AS
+   CREATE TABLE tickets.result_4 AS
    SELECT id AS ticket_id, subject, (metadata->>'csat_score')::int AS csat_score
    FROM tickets.ticket
    WHERE metadata @? '$.csat_score ? (@ == 5)';
@@ -145,7 +145,7 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
     Billing    |    700319 | 2026-08-20 21:44:36.572929+00
     Onboarding |    521500 | 2026-08-20 16:26:50.518429+00
     Retention  |    651522 | 2026-08-20 08:39:32.502735+00
-    Technik    |     54137 | 2026-08-20 16:43:39.751538+00
+    Technical  |     54137 | 2026-08-20 16:43:39.751538+00
    (4 rows)
    ```
 
@@ -162,11 +162,11 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
 
 ```sql
 SET TimeZone = 'UTC';
-SELECT team, count(*), max(laufende_summe) FROM tickets.ergebnis_1
+SELECT team, count(*), max(running_total) FROM tickets.result_1
 GROUP BY team ORDER BY team;
-SELECT count(*), max(rang) FROM tickets.ergebnis_2;
-SELECT tiefe, count(*) FROM tickets.ergebnis_3 GROUP BY tiefe ORDER BY tiefe;
-SELECT count(*) FROM tickets.ergebnis_4;
+SELECT count(*), max(rank_no) FROM tickets.result_2;
+SELECT depth, count(*) FROM tickets.result_3 GROUP BY depth ORDER BY depth;
+SELECT count(*) FROM tickets.result_4;
 RESET TimeZone;
 ```
 
@@ -178,7 +178,7 @@ Referenzlauf:
  Billing    |    25 | 273940
  Onboarding |    25 | 114676
  Retention  |    25 | 100992
- Technik    |    25 | 230551
+ Technical  |    25 | 230551
 (4 rows)
 
  count | max 
@@ -186,7 +186,7 @@ Referenzlauf:
    150 |   3
 (1 row)
 
- tiefe | count 
+ depth | count 
 -------+-------
      1 |     1
      2 |     2
@@ -200,20 +200,20 @@ Referenzlauf:
 ```
 
 Jedes der vier Teams verteilt sich auf 25 Monate, denn `created_at` deckt
-730 Tage vor `seed_base_date()` ab. `ergebnis_2` enthält 150 Zeilen, also 50
-Agenten mit höchstens drei Zeilen. `max(rang) = 3` bestätigt, dass die
+730 Tage vor `seed_base_date()` ab. `result_2` enthält 150 Zeilen, also 50
+Agenten mit höchstens drei Zeilen. `max(rank_no) = 3` bestätigt, dass die
 Begrenzung greift. Der Kommentarbaum von Ticket 9 hat eine Wurzel, zwei
 Kommentare auf Tiefe 2 und einen auf Tiefe 3.
 
 ## Hinweise
 
-Die laufende Summe in `ergebnis_1` bezieht sich je Zeile nur auf das eigene
+Die laufende Summe in `result_1` bezieht sich je Zeile nur auf das eigene
 Team, weil die Fensterfunktion danach partitioniert. Ein `ORDER BY` ohne
 `PARTITION BY` würde über alle Teams hinweg kumulieren.
 
-In der inneren Ebene von `ergebnis_2`, neben `WHERE status = 'closed'`,
-gibt es `rang` noch nicht. Deshalb filtert erst die äußere Abfrage auf
-`rang <= 3`. Eine `WHERE`-Bedingung auf ein Fensterfunktionsergebnis
+In der inneren Ebene von `result_2`, neben `WHERE status = 'closed'`,
+gibt es `rank_no` noch nicht. Deshalb filtert erst die äußere Abfrage auf
+`rank_no <= 3`. Eine `WHERE`-Bedingung auf ein Fensterfunktionsergebnis
 braucht immer eine äußere Abfrage oder eine CTE.
 
 `setup.sql` hängt jede Antwort an einen Kommentar desselben Tickets. Im
@@ -222,6 +222,6 @@ Ergebnis deshalb nicht. Er hält die Abfrage richtig, wenn später eine
 Antwort auf einen Kommentar eines anderen Tickets verweist; das Schema
 verbietet das nicht.
 
-`loesung.sql` entfernt zu Beginn `tickets.ergebnis_1` bis `ergebnis_4` und
+`loesung.sql` entfernt zu Beginn `tickets.result_1` bis `result_4` und
 lässt sich deshalb mehrfach ausführen. `ticket_metadata_gin` bleibt
 bestehen, weil mehrere Übungen den Index nutzen.

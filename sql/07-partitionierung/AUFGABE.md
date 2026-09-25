@@ -21,7 +21,7 @@ wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
 
 ## Aufgaben
 
-1. Lege `tickets.ticket_partitioniert` mit denselben acht Spalten wie
+1. Lege `tickets.ticket_partitioned` mit denselben acht Spalten wie
    `ticket` an: `id`, `agent_id`, `subject`, `status`, `priority`,
    `metadata`, `created_at`, `closed_at`. `id` ist wie in `ticket` eine
    Identity-Spalte (`GENERATED ALWAYS AS IDENTITY`). Partitioniere mit
@@ -32,7 +32,7 @@ wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
    `ticket_default`:
 
    ```sql
-   CREATE TABLE tickets.ticket_2024q3 PARTITION OF tickets.ticket_partitioniert
+   CREATE TABLE tickets.ticket_2024q3 PARTITION OF tickets.ticket_partitioned
        FOR VALUES FROM ('2024-07-01 00:00+00') TO ('2024-10-01 00:00+00');
    ```
 
@@ -40,7 +40,7 @@ wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
    `ALWAYS` ist, braucht das `INSERT` die Klausel `OVERRIDING SYSTEM VALUE`:
 
    ```sql
-   INSERT INTO tickets.ticket_partitioniert
+   INSERT INTO tickets.ticket_partitioned
        (id, agent_id, subject, status, priority, metadata, created_at, closed_at)
    OVERRIDING SYSTEM VALUE
    SELECT id, agent_id, subject, status, priority, metadata, created_at, closed_at
@@ -49,14 +49,14 @@ wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
 
    Setze danach die Identity mit `setval` auf `max(id)`, damit die nächste
    erzeugte ID 800001 ist. Den Namen der Sequenz liefert
-   `pg_get_serial_sequence('tickets.ticket_partitioniert', 'id')`. Führe
-   anschließend `ANALYZE tickets.ticket_partitioniert;` aus.
+   `pg_get_serial_sequence('tickets.ticket_partitioned', 'id')`. Führe
+   anschließend `ANALYZE tickets.ticket_partitioned;` aus.
 4. Vergleiche zwei Abfragen, die beide die Tickets des ersten Quartals 2025
    zählen. Die erste filtert direkt auf `created_at`:
 
    ```sql
    EXPLAIN (COSTS OFF)
-   SELECT count(*) FROM tickets.ticket_partitioniert
+   SELECT count(*) FROM tickets.ticket_partitioned
    WHERE created_at >= '2025-01-01 00:00+00' AND created_at < '2025-04-01 00:00+00';
    ```
 
@@ -65,7 +65,7 @@ wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
 
    ```sql
    EXPLAIN (COSTS OFF)
-   SELECT count(*) FROM tickets.ticket_partitioniert
+   SELECT count(*) FROM tickets.ticket_partitioned
    WHERE date_trunc('quarter', created_at AT TIME ZONE 'UTC') = timestamp '2025-01-01';
    ```
 
@@ -81,12 +81,12 @@ wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
 
 ```sql
 SET TimeZone = 'UTC';
-SELECT tableoid::regclass AS partition, count(*) AS zeilen
-FROM tickets.ticket_partitioniert
+SELECT tableoid::regclass AS partition, count(*) AS row_count
+FROM tickets.ticket_partitioned
 GROUP BY tableoid ORDER BY tableoid::regclass::text;
-SELECT count(*) AS partitionen FROM pg_inherits
-WHERE inhparent = 'tickets.ticket_partitioniert'::regclass;
-EXPLAIN (COSTS OFF) SELECT count(*) FROM tickets.ticket_partitioniert
+SELECT count(*) AS partitions FROM pg_inherits
+WHERE inhparent = 'tickets.ticket_partitioned'::regclass;
+EXPLAIN (COSTS OFF) SELECT count(*) FROM tickets.ticket_partitioned
 WHERE created_at >= '2025-01-01' AND created_at < '2025-04-01';
 ```
 
@@ -94,26 +94,26 @@ Die erste Abfrage listet die neun Quartalspartitionen mit ihren Zeilen. Die
 Summe ist 800000; die leere DEFAULT-Partition erscheint nicht:
 
 ```text
-       partition       | zeilen
------------------------+--------
- tickets.ticket_2024q3 |  45093
- tickets.ticket_2024q4 | 101272
- tickets.ticket_2025q1 |  98588
- tickets.ticket_2025q2 |  99128
- tickets.ticket_2025q3 | 100192
- tickets.ticket_2025q4 | 101052
- tickets.ticket_2026q1 |  98924
- tickets.ticket_2026q2 |  99776
- tickets.ticket_2026q3 |  55975
+       partition       | row_count
+-----------------------+-----------
+ tickets.ticket_2024q3 |     45093
+ tickets.ticket_2024q4 |    101272
+ tickets.ticket_2025q1 |     98588
+ tickets.ticket_2025q2 |     99128
+ tickets.ticket_2025q3 |    100192
+ tickets.ticket_2025q4 |    101052
+ tickets.ticket_2026q1 |     98924
+ tickets.ticket_2026q2 |     99776
+ tickets.ticket_2026q3 |     55975
 (9 rows)
 ```
 
 Die zweite zählt zehn Partitionen, die DEFAULT-Partition eingeschlossen:
 
 ```text
- partitionen
--------------
-          10
+ partitions
+------------
+         10
 (1 row)
 ```
 
@@ -123,7 +123,7 @@ Der Plan nennt nur `ticket_2025q1`:
                                                                          QUERY PLAN
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
  Aggregate
-   ->  Seq Scan on ticket_2025q1 ticket_partitioniert
+   ->  Seq Scan on ticket_2025q1 ticket_partitioned
          Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2025-04-01 00:00:00+00'::timestamp with time zone))
 (3 rows)
 ```
@@ -153,9 +153,9 @@ Ohne `CHECK` erscheint stattdessen `verifying table "ticket_2024q3"`.
 existiert.
 
 Ein Fremdschlüssel wie `comment.ticket_id` kann nicht auf
-`ticket_partitioniert (id)` zeigen, weil es dort keinen eindeutigen Schlüssel
+`ticket_partitioned (id)` zeigen, weil es dort keinen eindeutigen Schlüssel
 über `id` allein gibt. Er müsste `created_at` mitführen. Deshalb bleibt
 `ticket` in dieser Übung die Tabelle, auf die `comment` verweist.
 
-`loesung.sql` entfernt zu Beginn `ticket_partitioniert` und eine eventuell
+`loesung.sql` entfernt zu Beginn `ticket_partitioned` und eine eventuell
 abgetrennte `ticket_2024q3` und lässt sich deshalb mehrfach ausführen.

@@ -3,13 +3,13 @@
 -- ausführen. Am Stück ausgeführt scheitert die Datei an VACUUM (25001),
 -- außerdem liest sie die Zähler aus Aufgabe 4 und die WAL-Position aus
 -- Aufgabe 5 zu früh. Ein zweiter Lauf ist möglich, denn Abschnitt 1 löscht
--- tickets.messung und legt die Tabelle neu an.
+-- tickets.measurement und legt die Tabelle neu an.
 
 -- Abschnitt 1: Rücksetzen
-DROP TABLE IF EXISTS tickets.messung;
-CREATE TABLE tickets.messung (
-    schritt text PRIMARY KEY,
-    wert text
+DROP TABLE IF EXISTS tickets.measurement;
+CREATE TABLE tickets.measurement (
+    step text PRIMARY KEY,
+    value text
 );
 
 -- Abschnitt 2 (Aufgabe 1): Eigene Sitzung und eine zweite Verbindung in
@@ -21,19 +21,19 @@ WHERE datname = current_database()
 ORDER BY application_name;
 
 -- Abschnitt 3 (Aufgabe 2): xmin und ctid von Ticket 1 vor und nach einem
--- UPDATE. _vorher merkt sich beide Werte, damit derselbe Abschnitt vorher
+-- UPDATE. _before merkt sich beide Werte, damit derselbe Abschnitt vorher
 -- und nachher vergleichen kann.
-CREATE TEMP TABLE _vorher AS
-SELECT xmin AS xmin_vorher, ctid AS ctid_vorher FROM tickets.ticket WHERE id = 1;
+CREATE TEMP TABLE _before AS
+SELECT xmin AS xmin_before, ctid AS ctid_before FROM tickets.ticket WHERE id = 1;
 
 UPDATE tickets.ticket SET priority = priority WHERE id = 1;
 
-INSERT INTO tickets.messung (schritt, wert)
-SELECT 'ctid_geaendert', (t.ctid <> v.ctid_vorher)::text
-FROM tickets.ticket t, _vorher v
+INSERT INTO tickets.measurement (step, value)
+SELECT 'ctid_changed', (t.ctid <> v.ctid_before)::text
+FROM tickets.ticket t, _before v
 WHERE t.id = 1;
 
-DROP TABLE _vorher;
+DROP TABLE _before;
 
 -- Aufgabe 3: Zwei Verbindungen, eine offene Transaktion. Eine einzelne
 -- Skriptausführung hat keine zweite Verbindung, deshalb stehen die Schritte
@@ -64,8 +64,8 @@ UPDATE tickets.ticket SET priority = priority WHERE id <= 10000;
 SELECT pg_stat_force_next_flush();
 
 -- Abschnitt 5 (Aufgabe 4): Tote Tupel nach dem UPDATE festhalten
-INSERT INTO tickets.messung (schritt, wert)
-SELECT 'tote_tupel_nach_update', n_dead_tup::text
+INSERT INTO tickets.measurement (step, value)
+SELECT 'dead_tuples_after_update', n_dead_tup::text
 FROM pg_stat_user_tables WHERE schemaname = 'tickets' AND relname = 'ticket';
 
 -- Abschnitt 6 (Aufgabe 4): VACUUM allein, außerhalb eines Transaktionsblocks
@@ -73,8 +73,8 @@ VACUUM tickets.ticket;
 
 -- Abschnitt 7 (Aufgabe 4): Tote Tupel nach VACUUM festhalten, autovacuum
 -- zurücksetzen
-INSERT INTO tickets.messung (schritt, wert)
-SELECT 'tote_tupel_nach_vacuum', n_dead_tup::text
+INSERT INTO tickets.measurement (step, value)
+SELECT 'dead_tuples_after_vacuum', n_dead_tup::text
 FROM pg_stat_user_tables WHERE schemaname = 'tickets' AND relname = 'ticket';
 
 ALTER TABLE tickets.ticket RESET (autovacuum_enabled);
@@ -86,11 +86,11 @@ CREATE TEMP TABLE _wal_start AS SELECT pg_current_wal_lsn() AS lsn;
 UPDATE tickets.ticket SET priority = priority WHERE id = 1;
 
 -- Abschnitt 9 (Aufgabe 5): Differenz zur gemerkten Position festhalten
-INSERT INTO tickets.messung (schritt, wert)
+INSERT INTO tickets.measurement (step, value)
 SELECT 'wal_bytes', pg_wal_lsn_diff(pg_current_wal_lsn(), lsn)::text
 FROM _wal_start;
 
 DROP TABLE _wal_start;
 
 -- Abschnitt 10: Kontrolle
-SELECT schritt, wert FROM tickets.messung ORDER BY schritt;
+SELECT step, value FROM tickets.measurement ORDER BY step;

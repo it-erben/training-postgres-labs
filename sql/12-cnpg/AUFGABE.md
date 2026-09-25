@@ -27,7 +27,7 @@ Cluster:
 Entferne zu Beginn auf dem RW-Server die Übungstabelle:
 
 ```sql
-DROP TABLE IF EXISTS tickets.lesetest;
+DROP TABLE IF EXISTS tickets.read_test;
 ```
 
 Für Aufgabe 4 brauchst du entweder `kubectl` mit Leserechten im Namespace
@@ -40,9 +40,9 @@ welcher Weg in deiner Umgebung offen ist.
    vergleiche die Ergebnisse:
 
    ```sql
-   SELECT pg_is_in_recovery() AS replikat,
-          inet_server_addr() AS server_adresse,
-          current_setting('transaction_read_only') AS nur_lesen;
+   SELECT pg_is_in_recovery() AS is_replica,
+          inet_server_addr() AS server_addr,
+          current_setting('transaction_read_only') AS read_only;
    ```
 
    `pg_is_in_recovery()` ist `t` auf einem Replikat, das laufend WAL der
@@ -54,14 +54,14 @@ welcher Weg in deiner Umgebung offen ist.
    (PostgreSQL 18.6, ohne CloudNativePG), zuerst RW, dann RO:
 
    ```text
-    replikat | server_adresse | nur_lesen 
-   ----------+----------------+-----------
-    f        | 192.168.164.2  | off
+    is_replica |  server_addr  | read_only 
+   ------------+---------------+-----------
+    f          | 192.168.164.2 | off
    (1 row)
 
-    replikat | server_adresse | nur_lesen 
-   ----------+----------------+-----------
-    t        | 192.168.164.3  | on
+    is_replica |  server_addr  | read_only 
+   ------------+---------------+-----------
+    t          | 192.168.164.3 | on
    (1 row)
    ```
 
@@ -70,21 +70,21 @@ welcher Weg in deiner Umgebung offen ist.
    eine Zeile je Serverprozess; `pg_backend_pid()` liefert die Prozess-ID
    deiner Sitzung.
 
-3. Lege auf dem RW-Server die Tabelle `tickets.lesetest` an und schreibe
+3. Lege auf dem RW-Server die Tabelle `tickets.read_test` an und schreibe
    eine Zeile:
 
    ```sql
-   CREATE TABLE tickets.lesetest (
+   CREATE TABLE tickets.read_test (
        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-       notiz text NOT NULL,
-       geschrieben_um timestamptz NOT NULL DEFAULT now()
+       note text NOT NULL,
+       written_at timestamptz NOT NULL DEFAULT now()
    );
-   INSERT INTO tickets.lesetest (notiz) VALUES ('geschrieben auf RW');
+   INSERT INTO tickets.read_test (note) VALUES ('geschrieben auf RW');
    ```
 
    Wechsle sofort in das Query Tool des RO-Servers und lies die Tabelle.
    Notiere dort `pg_last_xact_replay_timestamp()` und vergleiche den Wert
-   mit `geschrieben_um`. Versuche danach, auf dem RO-Server eine zweite
+   mit `written_at`. Versuche danach, auf dem RO-Server eine zweite
    Zeile einzufügen.
 
 4. Lies den Status deines Clusters. Wähle den Weg, den deine Rechte
@@ -112,22 +112,22 @@ welcher Weg in deiner Umgebung offen ist.
 Auf dem RO-Server ausführen:
 
 ```sql
-SELECT pg_is_in_recovery() AS replikat,
-       (SELECT count(*) FROM tickets.lesetest) AS zeilen;
+SELECT pg_is_in_recovery() AS is_replica,
+       (SELECT count(*) FROM tickets.read_test) AS row_count;
 ```
 
 Referenzlauf mit einem lokalen Replikat (PostgreSQL 18.6, ohne
 CloudNativePG):
 
 ```text
- replikat | zeilen 
-----------+--------
- t        |      1
+ is_replica | row_count 
+------------+-----------
+ t          |         1
 (1 row)
 ```
 
-Steht in `replikat` ein `f`, lief die Abfrage auf dem RW-Server. Meldet der
-RO-Server `42P01` (`relation "tickets.lesetest" does not exist`), fehlt
+Steht in `is_replica` ein `f`, lief die Abfrage auf dem RW-Server. Meldet der
+RO-Server `42P01` (`relation "tickets.read_test" does not exist`), fehlt
 Aufgabe 3 auf dem RW-Server.
 
 Aufgabe 2 zeigte im selben Referenzlauf auf beiden Servern:
@@ -148,7 +148,7 @@ auf `on`.
 
 `pg_last_xact_replay_timestamp()` ist der Commit-Zeitpunkt der zuletzt
 eingespielten Transaktion, gemessen auf der Primärinstanz. Im Referenzlauf
-lag er weniger als eine Millisekunde nach `geschrieben_um`. Der Abstand
+lag er weniger als eine Millisekunde nach `written_at`. Der Abstand
 `now() - pg_last_xact_replay_timestamp()` wächst weiter, wenn niemand
 schreibt. Er misst dann nur die Zeit seit dem letzten Commit.
 
@@ -174,7 +174,7 @@ Primärinstanz heißt nicht immer `<cluster>-1`: Nach einem Switchover oder
 Failover übernimmt ein anderer Pod diese Rolle, und der Dienst
 `<cluster>-rw` zeigt dann auf ihn.
 
-`loesung.sql` entfernt zu Beginn `tickets.lesetest` und lässt sich deshalb
+`loesung.sql` entfernt zu Beginn `tickets.read_test` und lässt sich deshalb
 mehrfach ausführen. Der ausführbare Teil läuft auf dem RW-Server. Die
 Anweisungen für den RO-Server stehen als Kommentarblöcke mit der Markierung
 `-- RO-Server`.
