@@ -16,7 +16,8 @@ im pgAdmin mit dem RW-Server deiner Servergruppe, Datenbank `app`, und
 schalte im Query Tool `Auto commit` an und `Auto rollback on error` aus.
 
 Diesen Block führst du in Aufgabe 1 aus. Er entfernt zuerst die Schemas
-aus einem früheren Lauf und legt das Ausgangsschema neu an:
+aus einem früheren Lauf und legt das Ausgangsschema neu an. Alle
+Anweisungen laufen als eine Ausführung, wie in Übung 0 beschrieben:
 
 ```sql
 DROP SCHEMA IF EXISTS restore_exercise, restore_exercise_broken CASCADE;
