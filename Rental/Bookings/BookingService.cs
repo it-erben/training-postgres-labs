@@ -30,7 +30,10 @@ public sealed class BookingService(NpgsqlDataSource dataSource)
             }
             catch (PostgresException e) when (IsRetryable(e) && attempt < MaxAttempts)
             {
-                // Die gesamte Transaktion einschließlich der fachlichen Prüfung wird erneut ausgeführt.
+                // Die gesamte Transaktion einschließlich der fachlichen Prüfung wird erneut
+                // ausgeführt, nach einer kurzen Pause: Die Gegentransaktion kann in dieser Zeit
+                // bestätigen, und der Zufallsanteil trennt gleichzeitige Wiederholungen.
+                await Task.Delay(RetryDelay(attempt), ct);
             }
             catch (PostgresException e) when (e.SqlState is PostgresErrorCodes.ExclusionViolation
                                                 or PostgresErrorCodes.UniqueViolation
@@ -44,6 +47,18 @@ public sealed class BookingService(NpgsqlDataSource dataSource)
 
     public static bool IsRetryable(PostgresException e) =>
         e.SqlState is PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected;
+
+    /// <summary>
+    /// Pause vor Versuch <paramref name="attempt"/> + 1: Obergrenze 20 ms, je Versuch
+    /// verdoppelt, höchstens 200 ms; gewartet wird zufällig zwischen der Hälfte und der
+    /// ganzen Obergrenze.
+    /// </summary>
+    public static TimeSpan RetryDelay(int attempt)
+    {
+        var ceilingMs = Math.Min(200, 20 << Math.Min(attempt - 1, 4));
+        var delayMs = Random.Shared.Next(ceilingMs / 2, ceilingMs + 1);
+        return TimeSpan.FromMilliseconds(delayMs);
+    }
 
     private async Task<long> AttemptAsync(Booking booking, CancellationToken ct)
     {

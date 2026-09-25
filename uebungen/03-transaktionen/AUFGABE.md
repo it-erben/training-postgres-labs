@@ -104,7 +104,7 @@ for (var attempt = 1; ; attempt++)
     }
     catch (PostgresException e) when (IsRetryable(e) && attempt < MaxAttempts)
     {
-        // nächste Runde
+        await Task.Delay(RetryDelay(attempt), ct);   // Pause, dann nächste Runde
     }
     catch (PostgresException e) when (e.SqlState is PostgresErrorCodes.ExclusionViolation
                                         or PostgresErrorCodes.UniqueViolation
@@ -115,6 +115,28 @@ for (var attempt = 1; ; attempt++)
     }
 }
 ```
+
+Vor jeder neuen Runde wartet die Schleife kurz. Ohne Pause startet der
+Verlierer eines Konflikts sofort neu, solange die andere Transaktion noch
+nicht bestätigt hat, und läuft erneut in `40001`. Nach drei solchen Runden
+wäre die Buchung verloren, obwohl die andere Seite nur wenige
+Millisekunden später bestätigt. `RetryDelay` legt die Pause fest: 20 ms
+Obergrenze, je Versuch verdoppelt, höchstens 200 ms. Gewartet wird
+zufällig zwischen der Hälfte und der ganzen Obergrenze, damit zwei
+gleichzeitige Wiederholungen nicht wieder im Gleichschritt laufen:
+
+```csharp
+public static TimeSpan RetryDelay(int attempt)
+{
+    var ceilingMs = Math.Min(200, 20 << Math.Min(attempt - 1, 4));
+    var delayMs = Random.Shared.Next(ceilingMs / 2, ceilingMs + 1);
+    return TimeSpan.FromMilliseconds(delayMs);
+}
+```
+
+`Task.Delay` bekommt das `CancellationToken`. Ein Abbruch während der
+Pause endet mit `OperationCanceledException` und startet keine weitere
+Runde.
 
 Beim dritten wiederholbaren Fehler greift der erste `catch` nicht mehr
 (`attempt < MaxAttempts` ist falsch), und die `PostgresException` verlässt
