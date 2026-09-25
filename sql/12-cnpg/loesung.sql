@@ -70,6 +70,9 @@ FROM tickets.lesetest;
 --                               kann ihn noch nicht eingespielt haben.
 -- Monatsbericht:                <cluster>-ro. Ein Stand von einigen Sekunden
 --                               stört nicht, die Primärinstanz wird entlastet.
+-- <cluster>-r verteilt auf alle Instanzen einschließlich der Primärinstanz;
+-- welchen Stand eine Abfrage sieht, hängt von der je Verbindung gewählten
+-- Instanz ab. Für keinen der drei Fälle ist das die passende Wahl.
 
 -- Kontrolle
 -- RO-Server

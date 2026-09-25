@@ -2,12 +2,12 @@
 
 ## Ziel
 
-Du unterscheidest die Primärinstanz und ein Replikat deines
-CloudNativePG-Clusters mit SQL. Du prüfst, ob deine Verbindung
-verschlüsselt ist, und beobachtest, wann eine Zeile vom RW-Server auf dem
-RO-Server ankommt. Danach liest du den Status deines Clusters und
-begründest für drei Anwendungsfälle, welchen Dienst die Anwendung
-verwenden soll.
+Das Ticketsystem liegt in deinem eigenen CloudNativePG-Cluster mit einer
+Primärinstanz und Replikaten. Du unterscheidest beide mit SQL. Du prüfst,
+ob deine Verbindung verschlüsselt ist, und beobachtest, wann eine Zeile vom
+RW-Server auf dem RO-Server ankommt. Danach liest du den Status deines
+Clusters und begründest für drei Anwendungsfälle, welchen Dienst die
+Anwendung verwenden soll.
 
 ## Ausgangsstand
 
@@ -159,13 +159,15 @@ Last kann eine gerade geschriebene Zeile auf `-ro` für kurze Zeit fehlen.
 Ob dein Cluster synchron repliziert, zeigt `SHOW synchronous_standby_names`
 auf dem RW-Server. Ein leerer Wert bedeutet asynchron.
 
-Lösung zu Aufgabe 5: Das Übernehmen eines Tickets schreibt und gehört auf
-`<cluster>-rw`. Der eigene Kommentar muss direkt nach dem Speichern
-sichtbar sein; auch dieses Lesen gehört auf `<cluster>-rw`. Der
-Monatsbericht verträgt einen Stand von einigen Sekunden und entlastet über
-`<cluster>-ro` die Primärinstanz. `<cluster>-r` verteilt auf alle
-Instanzen einschließlich der Primärinstanz; ob eine Abfrage den neuesten
-Stand sieht, hängt dort von der zufällig gewählten Instanz ab.
+Auch mit synchroner Replikation kann eine Zeile auf `-ro` kurz fehlen.
+Mit `synchronous_commit = on` wartet der `COMMIT` nur, bis das Replikat das
+WAL dauerhaft gespeichert hat. Eingespielt und für Abfragen sichtbar ist
+die Zeile dann möglicherweise noch nicht. Darauf wartet erst
+`synchronous_commit = remote_apply`.
+
+`<cluster>-r` verteilt Verbindungen auf alle Instanzen einschließlich der
+Primärinstanz. Ob eine Abfrage den neuesten Stand sieht, hängt dort von der
+je Verbindung gewählten Instanz ab.
 
 In der Pod-Liste aus Aufgabe 4 steht die Rolle in der Spalte `ROLE`. Die
 Primärinstanz heißt nicht immer `<cluster>-1`: Nach einem Switchover oder
