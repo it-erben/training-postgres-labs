@@ -62,7 +62,9 @@ DELETE FROM tickets.ticket WHERE metadata ? 'course_module08';
    Unique-Index über alle Zeilen der Materialized View.
 
 3. Füge einen Nachtrag ein und zeige die Abweichung zwischen View und
-   Materialized View:
+   Materialized View. Führe die drei Anweisungen nacheinander einzeln aus
+   (Cursor in die Anweisung, `Execute query`), sonst zeigt `Data Output`
+   nur das Ergebnis der letzten:
 
    ```sql
    SELECT (SELECT sum(tickets_created) FROM tickets.team_live) AS view_total,
@@ -106,13 +108,21 @@ DELETE FROM tickets.ticket WHERE metadata ? 'course_module08';
    SELECT count(*) FROM tickets.team_report;
    ```
 
-   Die Transaktion bleibt offen. In B:
+   Die Transaktion bleibt offen. In B zuerst die beiden Einstellungen:
 
    ```sql
    SET application_name = 'exercise_b';
    SET lock_timeout = '1s';
+   ```
+
+   Danach, als eigene Ausführung in B:
+
+   ```sql
    REFRESH MATERIALIZED VIEW tickets.team_report;
    ```
+
+   Stünden `SET` und `REFRESH` in einer Markierung, liefen sie als eine
+   Transaktion, und der Fehler nähme auch `SET lock_timeout` wieder zurück.
 
    Der gewöhnliche `REFRESH` nimmt eine `ACCESS EXCLUSIVE`-Sperre auf die
    Materialized View und wartet auf die von A gehaltene Lesesperre. Nach
