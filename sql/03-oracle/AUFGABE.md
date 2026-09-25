@@ -14,11 +14,11 @@ Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus. Aufgabe 4 legt
 absichtlich einen Fehlerzustand an. Mit eingeschaltetem Auto rollback würde
-pgAdmin die gesamte Transaktion vorzeitig zurückrollen. Führe jeden
-Codeblock für sich aus: markieren, F5, dann der nächste Block.
+pgAdmin die gesamte Transaktion vorzeitig zurückrollen. Jeder Codeblock ist
+eine Ausführung, wie in Übung 0 beschrieben.
 
 Lege zu Beginn `tickets.verification` an. Sie hält die Antworten der fünf
-Aufgaben fest:
+Aufgaben fest. Beide Anweisungen laufen als eine Ausführung:
 
 ```sql
 DROP TABLE IF EXISTS tickets.verification;
@@ -30,7 +30,8 @@ CREATE TABLE tickets.verification (
 
 `ticket.subject` ist in diesem Schema `NOT NULL`. Für den Vergleich von
 leerem Text und NULL in Aufgabe 1 richtest du deshalb eine eigene kleine
-Tabelle ein, deren Textspalte NULL zulässt:
+Tabelle ein, deren Textspalte NULL zulässt. Auch dieser Block läuft als
+eine Ausführung:
 
 ```sql
 DROP TABLE IF EXISTS tickets.migration_text;
@@ -75,8 +76,7 @@ CREATE TABLE tickets.migration_text (
    ```
 
 3. Lege innerhalb einer Transaktion eine Tabelle an, füge eine Zeile ein und
-   rolle beides zurück. Markiere dafür nur diesen Block: `ROLLBACK` nimmt
-   alles zurück, was in derselben Markierung davor steht.
+   rolle beides zurück. Die vier Anweisungen laufen als eine Ausführung:
 
    ```sql
    BEGIN;
@@ -95,22 +95,27 @@ CREATE TABLE tickets.migration_text (
 4. Lege `tickets.booking_test` an und löse einen Fehler in einer laufenden
    Transaktion aus. Beobachte den SQLSTATE des Fehlers und den SQLSTATE der
    danach folgenden Anweisung, bevor du mit `ROLLBACK TO SAVEPOINT`
-   fortsetzt. Tabelle anlegen, Transaktion und Savepoint öffnen:
+   fortsetzt. Tabelle anlegen:
 
    ```sql
    CREATE TABLE tickets.booking_test (
        id integer PRIMARY KEY,
        amount numeric(10, 2) NOT NULL
    );
+   ```
 
+   Transaktion und Savepoint öffnen. Die drei Anweisungen laufen als eine
+   Ausführung, die Transaktion bleibt danach offen:
+
+   ```sql
    BEGIN;
    INSERT INTO tickets.booking_test VALUES (1, 10.00);
    SAVEPOINT before_error;
    ```
 
-   Führe die beiden nächsten Anweisungen einzeln aus. Nach einem Fehler
-   bricht die Ausführung der Markierung ab, eine zweite Anweisung darin
-   liefe gar nicht mehr.
+   Die beiden nächsten Anweisungen stehen in getrennten Blöcken. Nach einem
+   Fehler bricht eine Ausführung ab, eine zweite Anweisung darin liefe gar
+   nicht mehr.
 
    ```sql
    INSERT INTO tickets.booking_test VALUES (1, 20.00);
@@ -125,7 +130,8 @@ CREATE TABLE tickets.migration_text (
    fehlgeschlagenen Transaktion und liefert deshalb SQLSTATE `25P02`, ohne
    selbst einen inhaltlichen Fehler zu haben. Erst `ROLLBACK TO SAVEPOINT`
    hebt den Fehlerzustand auf. Die Zeile, die vor dem Savepoint eingefügt
-   wurde, bleibt dabei erhalten:
+   wurde, bleibt dabei erhalten. Die drei Anweisungen laufen als eine
+   Ausführung:
 
    ```sql
    ROLLBACK TO SAVEPOINT before_error;
@@ -143,15 +149,15 @@ CREATE TABLE tickets.migration_text (
 
 5. Lege eine Tabelle mit einem in Anführungszeichen geschriebenen,
    gemischt geschriebenen Namen an und greife anschließend ohne
-   Anführungszeichen darauf zu:
+   Anführungszeichen darauf zu. Der erste Block läuft als eine Ausführung:
 
    ```sql
    CREATE TABLE tickets."Customer" (id integer PRIMARY KEY, name text);
    INSERT INTO tickets."Customer" VALUES (1, 'Muster GmbH');
    ```
 
-   Führe die Abfrage in einer eigenen Ausführung aus. In derselben
-   Markierung würde ihr Fehler auch das `CREATE TABLE` zurückrollen.
+   Die Abfrage steht in einem eigenen Block. In derselben Ausführung nähme
+   ihr Fehler auch das `CREATE TABLE` zurück.
 
    ```sql
    SELECT * FROM tickets.customer;
@@ -220,8 +226,8 @@ Schreibweise, verlangt danach aber bei jedem Zugriff genau diese
 Schreibweise in Anführungszeichen. Der Name `customer` bezeichnet ein anderes,
 nicht vorhandenes Objekt.
 
-`loesung.sql` läuft abschnittsweise: Jeder Block ab `-- Abschnitt` wird
-einzeln markiert und ausgeführt. Die drei Anweisungen mit erwartetem Fehler
+`loesung.sql` läuft abschnittsweise: Jeder Block ab `-- Abschnitt` ist eine
+Ausführung. Die drei Anweisungen mit erwartetem Fehler
 stehen dort als Kommentar mit ihrem SQLSTATE. Abschnitt 1 entfernt
 `tickets.verification`, `tickets.migration_text`, `tickets.ddl_test`,
 `tickets.booking_test` und `tickets."Customer"`. Die Datei lässt sich deshalb

@@ -41,9 +41,8 @@ SELECT 2, 'operator=' || coalesce('a' || NULL, '<NULL>')
            || ', concat=' || coalesce(concat('a', NULL), '<NULL>');
 
 -- Abschnitt 4 (Aufgabe 3): CREATE TABLE im Rollback. PostgreSQL nimmt DDL
--- innerhalb eines Transaktionsblocks vollständig zurück. Der Abschnitt
--- steht allein: ROLLBACK nimmt alles zurück, was in derselben Markierung
--- davor steht.
+-- innerhalb eines Transaktionsblocks vollständig zurück. Die vier
+-- Anweisungen laufen als eine Ausführung.
 BEGIN;
 CREATE TABLE tickets.ddl_test (id integer PRIMARY KEY);
 INSERT INTO tickets.ddl_test VALUES (1);
@@ -53,12 +52,13 @@ ROLLBACK;
 INSERT INTO tickets.verification (num, result)
 VALUES (3, 'object_dropped=' || (to_regclass('tickets.ddl_test') IS NULL)::text);
 
--- Abschnitt 6 (Aufgabe 4): Tabelle anlegen, Transaktion mit Savepoint öffnen
+-- Abschnitt 6 (Aufgabe 4): Tabelle anlegen
 CREATE TABLE tickets.booking_test (
     id integer PRIMARY KEY,
     amount numeric(10, 2) NOT NULL
 );
 
+-- Abschnitt 7 (Aufgabe 4): Transaktion mit Savepoint öffnen, sie bleibt offen
 BEGIN;
 INSERT INTO tickets.booking_test VALUES (1, 10.00);
 SAVEPOINT before_error;
@@ -69,7 +69,7 @@ SAVEPOINT before_error;
 -- SELECT count(*) FROM tickets.booking_test;
 -- -- SQLSTATE 25P02: Die Transaktion ist bereits abgebrochen.
 
--- Abschnitt 7 (Aufgabe 4): ROLLBACK TO SAVEPOINT hebt den Fehlerzustand auf
+-- Abschnitt 8 (Aufgabe 4): ROLLBACK TO SAVEPOINT hebt den Fehlerzustand auf
 -- und erhält die Einfügung vor dem Savepoint.
 ROLLBACK TO SAVEPOINT before_error;
 INSERT INTO tickets.booking_test VALUES (2, 30.00);
@@ -79,7 +79,7 @@ INSERT INTO tickets.verification (num, result)
 SELECT 4, string_agg(id || ':' || amount, ', ' ORDER BY id)
 FROM tickets.booking_test;
 
--- Abschnitt 8 (Aufgabe 5): Bezeichner. "Customer" bewahrt die Schreibweise.
+-- Abschnitt 9 (Aufgabe 5): Bezeichner. "Customer" bewahrt die Schreibweise.
 CREATE TABLE tickets."Customer" (id integer PRIMARY KEY, name text);
 INSERT INTO tickets."Customer" VALUES (1, 'Muster GmbH');
 
@@ -88,9 +88,9 @@ INSERT INTO tickets."Customer" VALUES (1, 'Muster GmbH');
 -- SELECT * FROM tickets.customer;
 -- -- SQLSTATE 42P01: relation "tickets.customer" does not exist
 
--- Abschnitt 9 (Aufgabe 5): Tabelle unter ihrem richtigen Namen prüfen
+-- Abschnitt 10 (Aufgabe 5): Tabelle unter ihrem richtigen Namen prüfen
 INSERT INTO tickets.verification (num, result)
 VALUES (5, 'object_exists=' || (to_regclass('tickets."Customer"') IS NOT NULL)::text);
 
--- Abschnitt 10: Kontrolle
+-- Abschnitt 11: Kontrolle
 SELECT num, result FROM tickets.verification ORDER BY num;
