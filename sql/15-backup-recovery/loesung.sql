@@ -31,8 +31,10 @@ SELECT count(*) AS tickets FROM restore_uebung.ticket;
 -- restore_uebung, Backup...
 -- Reiter General: Dateiname restore_uebung.dump, Format Custom, übrige
 -- Felder unverändert. Backup starten.
--- Reiter Processes, Details des Auftrags: Der pg_dump-Aufruf enthält
--- unter anderem --file, --format=c und --schema restore_uebung.
+-- Reiter Processes, Details des Auftrags: Laut Quelltext von pgAdmin
+-- enthält der pg_dump-Aufruf unter anderem --file, --format=c und
+-- --schema restore_uebung. Die genaue Befehlszeile zeigt der Reiter in
+-- der Kursumgebung; Menünamen können dort leicht abweichen.
 -- Gleichwertig auf der Kommandozeile:
 --   pg_dump "<verbindung>" -Fc -n restore_uebung -f restore_uebung.dump
 

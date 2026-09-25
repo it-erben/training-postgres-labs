@@ -129,8 +129,9 @@ Restore. Die Sicherung eines einzelnen Schemas enthält keine Rollen und
 keine Objekte aus anderen Schemas, von denen es abhängt.
 
 Das Custom-Format lässt sich vor dem Restore lesen. `pg_restore -l` zeigt
-das Inhaltsverzeichnis. Referenzlauf, Kopfzeilen gekürzt; die Nummern
-sind Objekt-IDs und weichen bei dir ab:
+das Inhaltsverzeichnis. Referenzlauf, Kopfzeilen gekürzt. Jede Zeile
+beginnt mit der Nummer des Eintrags im Archiv, danach folgen die OID des
+Systemkatalogs und die OID des Objekts; diese Zahlen weichen bei dir ab:
 
 ```text
 ;     Format: CUSTOM
@@ -170,6 +171,11 @@ Command was: CREATE SCHEMA restore_uebung;
 ...
 pg_restore: warning: errors ignored on restore: 10
 ```
+
+Die Sicherung enthält für das Schema und beide Tabellen ein
+`ALTER ... OWNER TO app`. Wer mit einer anderen Rolle einspielt, lässt
+diese Anweisungen weg: mit `pg_restore --no-owner` oder im Restore-Dialog
+im Reiter `Data Options`, Bereich `Do not save`, Schalter `Owner`.
 
 Die Option `Single transaction` im Reiter `Query Options` des
 Restore-Dialogs bricht beim ersten Fehler ab und rollt alles zurück.
