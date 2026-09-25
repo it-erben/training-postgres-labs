@@ -15,7 +15,8 @@ lässt sie von einer Leerlaufgrenze beenden.
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus und ändert keine
 Daten. Arbeite auf dem RW-Server deiner Servergruppe mit `Auto commit` an
-und `Auto rollback on error` aus.
+und `Auto rollback on error` aus. Jeder Codeblock ist eine Ausführung, wie
+in Übung 0 beschrieben.
 
 Du brauchst zuerst ein Query Tool, für Aufgabe 2 drei weitere. Für
 Aufgabe 4 und 5 verwendest du zwei davon als Verbindung A und B. Schließe
@@ -23,7 +24,7 @@ die übrigen Query Tools nach Aufgabe 3.
 
 ## Aufgaben
 
-1. Lies die Grenzen deiner Instanz und zähle deine eigenen Verbindungen:
+1. Lies die Grenzen deiner Instanz:
 
    ```sql
    SELECT name, setting
@@ -32,7 +33,11 @@ die übrigen Query Tools nach Aufgabe 3.
                   'superuser_reserved_connections',
                   'reserved_connections')
    ORDER BY name;
+   ```
 
+   Zähle danach deine eigenen Verbindungen:
+
+   ```sql
    SELECT current_setting('max_connections')::int AS max_connections,
           count(*) FILTER (WHERE usename = current_user) AS own_sessions
    FROM pg_stat_activity;
@@ -42,14 +47,14 @@ die übrigen Query Tools nach Aufgabe 3.
    einzigen Sitzung:
 
    ```text
-                 name              | setting 
+                 name              | setting
    --------------------------------+---------
     max_connections                | 100
     reserved_connections           | 0
     superuser_reserved_connections | 3
    (3 rows)
 
-    max_connections | own_sessions 
+    max_connections | own_sessions
    -----------------+--------------
                 100 |            1
    (1 row)
@@ -108,10 +113,16 @@ die übrigen Query Tools nach Aufgabe 3.
    vierter Pod läuft? Was passiert mit dem Npgsql-Standard
    `Maximum Pool Size=100`?
 
-4. Erzeuge in Verbindung A eine offene Transaktion und lass sie offen:
+4. Erzeuge in Verbindung A eine offene Transaktion und lass sie offen.
+   Zuerst der Name der Sitzung:
 
    ```sql
    SET application_name = 'exercise13_a';
+   ```
+
+   Danach in A, beide Anweisungen als eine Ausführung:
+
+   ```sql
    BEGIN;
    SELECT count(*) AS open_tickets FROM tickets.ticket WHERE status = 'open';
    ```
@@ -140,11 +151,15 @@ die übrigen Query Tools nach Aufgabe 3.
    Wiederhole die Abfrage in B nach einer halben Minute und vergleiche
    `xact_age`. Schließe die Transaktion danach in A mit `COMMIT;`.
 
-5. Setze in Verbindung A eine Leerlaufgrenze und öffne wieder eine
-   Transaktion:
+5. Setze in Verbindung A eine Leerlaufgrenze:
 
    ```sql
    SET idle_in_transaction_session_timeout = '10s';
+   ```
+
+   Öffne wieder eine Transaktion, beide Anweisungen als eine Ausführung:
+
+   ```sql
    BEGIN;
    SELECT count(*) AS open_tickets FROM tickets.ticket WHERE status = 'open';
    ```

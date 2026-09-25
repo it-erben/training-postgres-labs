@@ -1,12 +1,16 @@
--- Musterlösung zu SQL-Übung 13. Der ausführbare Teil liest nur und lässt
--- sich deshalb mehrfach ausführen; er setzt zu Beginn die Leerlaufgrenze
--- der eigenen Sitzung zurück. Aufgabe 2 braucht zusätzliche Query Tools,
--- Aufgabe 4 und 5 zwei gleichzeitige Verbindungen. Die Schritte dafür
--- stehen als Kommentar, markiert mit -- Verbindung A und -- Verbindung B,
--- weil eine Skriptausführung nur eine Verbindung hat.
+-- Musterlösung zu SQL-Übung 13. Im Query Tool abschnittsweise ausführen:
+-- jeden mit "-- Abschnitt" beginnenden Block einzeln markieren und mit F5
+-- ausführen. Der ausführbare Teil liest nur und lässt sich deshalb mehrfach
+-- ausführen; er setzt zu Beginn die Leerlaufgrenze der eigenen Sitzung
+-- zurück. Aufgabe 2 braucht zusätzliche Query Tools, Aufgabe 4 und 5 zwei
+-- gleichzeitige Verbindungen. Die Schritte dafür stehen als Kommentar,
+-- markiert mit -- Verbindung A und -- Verbindung B, weil eine
+-- Skriptausführung nur eine Verbindung hat.
+
+-- Abschnitt 1: Leerlaufgrenze der eigenen Sitzung zurücksetzen
 RESET idle_in_transaction_session_timeout;
 
--- Aufgabe 1: Grenze und eigene Verbindungen
+-- Abschnitt 2 (Aufgabe 1): Grenzen der Instanz
 SELECT name, setting
 FROM pg_settings
 WHERE name IN ('max_connections',
@@ -14,13 +18,15 @@ WHERE name IN ('max_connections',
                'reserved_connections')
 ORDER BY name;
 
+-- Abschnitt 3 (Aufgabe 1): eigene Verbindungen
 SELECT current_setting('max_connections')::int AS max_connections,
        count(*) FILTER (WHERE usename = current_user) AS own_sessions
 FROM pg_stat_activity;
 -- Mit einem einzigen Query Tool ist own_sessions mindestens 1. Im pgAdmin kommt
 -- meist die Verbindung des Objektbaums dazu.
 
--- Aufgabe 2: weitere Query Tools öffnen, dann im ersten Query Tool
+-- Abschnitt 4 (Aufgabe 2): weitere Query Tools öffnen, dann im ersten
+-- Query Tool
 SELECT application_name, state, count(*) AS total
 FROM pg_stat_activity
 WHERE usename = current_user
@@ -31,7 +37,7 @@ ORDER BY application_name, state;
 -- auf idle, das ausführende auf active. own_sessions aus Aufgabe 1 ist um drei
 -- gestiegen.
 
--- Aufgabe 3: Rechnung
+-- Abschnitt 5 (Aufgabe 3): Rechnung
 SELECT 3 * 20 AS app_demand,
        4 * 20 AS rolling_update_demand,
        current_setting('max_connections')::int
@@ -92,7 +98,7 @@ FROM pg_stat_activity;
 -- -- FATAL: 25P03: terminating connection due to idle-in-transaction timeout
 -- -- Die Verbindung ist beendet, die Transaktion zurückgerollt.
 
--- Kontrolle
+-- Abschnitt 6: Kontrolle
 SELECT current_setting('max_connections')::int AS max_connections,
        count(*) FILTER (WHERE usename = current_user) AS own_sessions
 FROM pg_stat_activity;
