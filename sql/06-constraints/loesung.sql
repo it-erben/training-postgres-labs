@@ -41,7 +41,21 @@ ALTER TABLE ticket VALIDATE CONSTRAINT ticket_priority_check;
 
 -- Aufgabe 2: Fremdschlüssel ohne unterstützenden Index finden (Ergebnis
 -- siehe AUFGABE.md: comment_parent_id_fkey, comment_ticket_id_fkey,
--- ticket_agent_id_fkey), Index für comment.parent_id anlegen
+-- ticket_agent_id_fkey), Index für comment.parent_id anlegen. Ein
+-- Teilindex wie ticket_open_idx aus Übung 2 zählt nicht, weil er nur einen
+-- Teil der Zeilen enthält.
+SELECT c.conrelid::regclass AS table_name, c.conname
+FROM pg_constraint c
+WHERE c.contype = 'f'
+  AND c.connamespace = 'tickets'::regnamespace
+  AND NOT EXISTS (
+      SELECT 1 FROM pg_index i
+      WHERE i.indrelid = c.conrelid
+        AND i.indkey[0] = c.conkey[1]
+        AND i.indpred IS NULL
+  )
+ORDER BY c.conname;
+
 CREATE INDEX comment_parent_idx ON comment (parent_id);
 
 -- Aufgabe 3: Bereitschaftsplan ohne überlappende Zeiträume je Agent

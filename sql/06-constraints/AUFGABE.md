@@ -37,18 +37,26 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    in einer offenen Transaktion beobachtest. Läuft `ADD CONSTRAINT` in
    derselben Transaktion wie `VALIDATE CONSTRAINT`, bleibt seine kurze,
    aber starke Sperre bis zum `COMMIT` bestehen und verfälscht die
-   Beobachtung. In A:
+   Beobachtung. Führe in A die beiden folgenden Blöcke nacheinander
+   einzeln aus. Als eine Markierung liefe `ADD CONSTRAINT` in der
+   Transaktion, die `BEGIN` öffnet. Erster Block in A:
 
    ```sql
    SET application_name = 'exercise_a';
    ALTER TABLE tickets.ticket
        ADD CONSTRAINT ticket_priority_check
        CHECK (priority BETWEEN 1 AND 4) NOT VALID;
+   ```
+
+   Zweiter Block in A:
+
+   ```sql
    BEGIN;
    ALTER TABLE tickets.ticket VALIDATE CONSTRAINT ticket_priority_check;
    ```
 
-   Die Transaktion bleibt offen. In B, während A noch offen ist:
+   Die Transaktion bleibt offen. In B, während A noch offen ist, zuerst die
+   Sperren von A:
 
    ```sql
    SELECT a.application_name, l.mode, l.granted
@@ -56,8 +64,6 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    JOIN pg_stat_activity a ON a.pid = l.pid
    WHERE a.application_name = 'exercise_a' AND l.relation = 'tickets.ticket'::regclass
    ORDER BY l.mode;
-
-   UPDATE tickets.ticket SET priority = priority WHERE id = 1;
    ```
 
    Referenzlauf:
@@ -67,7 +73,17 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    ------------------+--------------------------+---------
     exercise_a       | ShareUpdateExclusiveLock | t
    (1 row)
+   ```
 
+   Danach, als eigene Ausführung in B:
+
+   ```sql
+   UPDATE tickets.ticket SET priority = priority WHERE id = 1;
+   ```
+
+   Referenzlauf:
+
+   ```text
    UPDATE 1
    ```
 
@@ -102,6 +118,7 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
          SELECT 1 FROM pg_index i
          WHERE i.indrelid = c.conrelid
            AND i.indkey[0] = c.conkey[1]
+           AND i.indpred IS NULL
      )
    ORDER BY c.conname;
    ```
@@ -192,7 +209,13 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
        ticket_id bigint NOT NULL
            REFERENCES tickets.ticket(id) DEFERRABLE INITIALLY DEFERRED
    );
+   ```
 
+   Führe die Transaktion danach als eigenen Block aus. In derselben
+   Markierung gehörte `CREATE TABLE` zur Transaktion, und der Fehler beim
+   `COMMIT` nähme auch die Tabelle wieder mit:
+
+   ```sql
    BEGIN;
    INSERT INTO tickets.ticket_ref (ticket_id) VALUES (9999999);
    -- INSERT 0 1, ohne Fehler: Ticket 9999999 existiert nicht.
@@ -251,6 +274,11 @@ gar nicht prüft.
 `indkey[0]`. Ein zusammengesetzter Fremdschlüssel bräuchte einen Vergleich
 über alle Positionen. Hier reicht die erste Spalte, weil jeder betroffene
 Fremdschlüssel nur eine Spalte umfasst.
+
+`i.indpred IS NULL` lässt Teilindizes aus. `ticket_open_idx` aus Übung 2
+beginnt mit `agent_id`, enthält aber nur Tickets, die nicht `closed` sind.
+Für die Prüfung des Fremdschlüssels bei einem `DELETE` auf `agent` hilft
+er deshalb nicht.
 
 Für den Primärschlüssel legt PostgreSQL automatisch einen Index an. Für
 eine Fremdschlüsselspalte muss ihn jemand selbst anlegen. Ohne diesen
