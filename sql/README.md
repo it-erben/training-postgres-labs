@@ -32,7 +32,7 @@ Hinweise. `loesung.sql` ist die Musterlösung und liegt im selben Verzeichnis.
 | 08  | [Materialized Views](08-materialized-views/AUFGABE.md) | Materialized Views                |
 | 10  | [Datentypen](10-datentypen/AUFGABE.md)                 | Datentypen                        |
 | 11  | [Fremddaten](11-fremddaten/AUFGABE.md)                 | Fremddaten und Integration        |
-| 12  | CNPG aus Anwendersicht                                 | CNPG aus Anwendersicht            |
+| 12  | [CNPG aus Anwendersicht](12-cnpg/AUFGABE.md)           | CNPG aus Anwendersicht            |
 | 13  | Verbindungen und Pooling                               | Verbindungen und Pooling          |
 | 14  | Hochverfügbarkeit                                      | Hochverfügbarkeit, Dos and Don'ts |
 | 15  | Backup und Recovery                                    | Backup und Recovery               |
