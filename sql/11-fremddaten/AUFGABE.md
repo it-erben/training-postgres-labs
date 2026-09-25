@@ -51,7 +51,9 @@ Die Gegenseite ist deine eigene Datenbank `app`, erreicht über den Dienst
    `trusted` aus `pg_available_extension_versions` ab. Eine Erweiterung, die
    im Image fehlt, soll trotzdem als Zeile erscheinen.
 2. Lege den Server `course_loopback` mit `host '<cluster>-rw'`,
-   `dbname 'app'` und `sslmode 'verify-full'` an. Lege ein User Mapping
+   `dbname 'app'`, `sslmode 'verify-full'` und
+   `sslrootcert '/controller/certificates/server-ca.crt'` an. Der Hinweis
+   zu `sslmode` erklärt den Pfad. Lege ein User Mapping
    für `CURRENT_USER` mit `user 'app'` und dem Passwort an. Lege das Schema
    `remote` an und importiere mit `IMPORT FOREIGN SCHEMA ... LIMIT TO` nur
    die Tabellen `agent` und `ticket` aus dem Schema `tickets`.
@@ -86,8 +88,12 @@ Die erste Abfrage zählt auf beiden Wegen dieselben Tickets:
 (1 row)
 ```
 
+Nach Übung 8 zählt deren Nachtrag mit, ein offenes Ticket von Agent 1 aus
+`Technical`: Dann steht auf beiden Wegen 3785.
+
 Im Plan der zweiten laufen Filter und Zählung auf der Gegenseite. Lokal
-bleibt ein einziger `Foreign Scan`:
+bleibt ein einziger `Foreign Scan`. Referenzlauf auf dem Kurscluster
+`trainer-pg`:
 
 ```text
                                  QUERY PLAN
@@ -96,21 +102,28 @@ bleibt ein einziger `Foreign Scan`:
    Output: (count(*))
    Relations: Aggregate on (remote.ticket)
    Remote SQL: SELECT count(*) FROM tickets.ticket WHERE ((status = 'open'))
-(4 rows)
+ Query Identifier: 769354697196695057
+(5 rows)
 ```
 
-Aufgabe 1 liefert im lokalen Testlauf mit dem offiziellen Docker-Image
-PostgreSQL 18.6 dieses Bild. Auf deinem Cluster kann es abweichen:
+Die letzte Zeile erscheint, weil der Kurscluster `pg_stat_statements` lädt
+und `compute_query_id` auf `auto` steht. Die Zahl unterscheidet sich von
+Cluster zu Cluster. Ohne `pg_stat_statements` fehlt die Zeile.
+
+Aufgabe 1 zeigte auf `trainer-pg` nach Übung 6:
 
 ```text
      name     | default_version | installed_version | trusted
 --------------+-----------------+-------------------+---------
- btree_gist   | 1.8             |                   | t
- oracle_fdw   |                 |                   |
+ btree_gist   | 1.8             | 1.8               | t
+ oracle_fdw   | 1.2             |                   | f
  postgres_fdw | 1.2             | 1.2               | f
  tds_fdw      |                 |                   |
 (4 rows)
 ```
+
+Vor Übung 6 ist `installed_version` bei `btree_gist` leer. `oracle_fdw`
+liegt im Image der Kursumgebung, `tds_fdw` fehlt.
 
 In Aufgabe 5 bleibt die Bedingung auf `created_at` lokal. Das `Remote SQL`
 holt alle offenen Tickets, und ein lokaler `Aggregate`-Knoten zählt. Die
@@ -123,7 +136,8 @@ Ausgabe ist um die Spaltenliste des `Foreign Scan` gekürzt:
          ...
          Filter: (ticket.created_at >= (now() - '90 days'::interval))
          Remote SQL: SELECT created_at FROM tickets.ticket WHERE ((status = 'open'))
-(6 rows)
+ Query Identifier: -4167830102801849831
+(7 rows)
 ```
 
 ## Hinweise
@@ -143,22 +157,23 @@ Fehlt das `GRANT USAGE`, scheitert schon `CREATE SERVER` mit `42501` und
 `sslmode 'verify-full'` prüft das Zertifikat der Gegenseite und ihren
 Namen. Die Verbindung baut der Datenbankserver auf, pgAdmin ist daran
 nicht beteiligt. Das Wurzelzertifikat muss deshalb auf dem Datenbankserver
-liegen. Ohne weitere
-Angabe sucht libpq es unter `~/.postgresql/root.crt` im Heimatverzeichnis
-des Betriebssystembenutzers, unter dem der Server läuft. Liegt die CA an
-einem anderen Pfad im Datenbank-Pod, nennt ihn die Serveroption
-`sslrootcert`; welcher Pfad das im Kurs ist, sagt dir die Kursleitung:
+liegen. Ohne weitere Angabe sucht libpq es unter `~/.postgresql/root.crt`
+im Heimatverzeichnis des Betriebssystembenutzers, unter dem der Server
+läuft. Im CloudNativePG-Pod liegt die CA des Clusters unter
+`/controller/certificates/server-ca.crt`; die Serveroption `sslrootcert`
+nennt diesen Pfad. Hast du den Server ohne die Option angelegt, ergänze
+sie nachträglich:
 
 ```sql
-ALTER SERVER course_loopback OPTIONS (ADD sslrootcert '<ca-pfad>');
+ALTER SERVER course_loopback
+    OPTIONS (ADD sslrootcert '/controller/certificates/server-ca.crt');
 ```
 
-Fehlt die Datei, scheitert der erste Zugriff über `remote`. Im lokalen
-Referenzlauf lief ein Server `tls_probe` gegen eine Gegenseite mit TLS,
-auf dem Datenbankserver lag keine CA-Datei:
+Fehlt die Option, scheitert der erste Zugriff über `remote`, auf dem
+Kurscluster mit:
 
 ```text
-ERROR:  08001: could not connect to server "tls_probe"
+ERROR:  08001: could not connect to server "course_loopback"
 ```
 
 Die Zeile `DETAIL` darunter nennt nach Adresse und Port den gesuchten Pfad:
