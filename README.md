@@ -54,6 +54,19 @@ git checkout -b meine-uebung-01 uebung-01-start
 dotnet test --filter-trait Exercise=01
 ```
 
+Die Tags `uebung-NN-start` und `uebung-NN-loesung` enthalten `sql/` nicht;
+nach dem Wechsel auf einen Übungsbranch fehlt die SQL-Serie im
+Arbeitsverzeichnis. Ein zweiter Worktree hält `main` mit der SQL-Serie
+daneben bereit. Er lässt sich anlegen, sobald `main` nicht mehr im ersten
+Arbeitsverzeichnis ausgecheckt ist, also nach dem ersten `git checkout -b`:
+
+```sh
+git worktree add ../training-postgres-labs-sql main
+```
+
+Ohne Worktree stehen dieselben Dateien auf GitHub im Branch `main` unter
+`sql/`.
+
 Die Tests einer Übung sind zu Beginn rot und nennen den fehlenden Baustein.
 Bonus-Tests tragen den Trait `Stretch=true` und zählen nicht zur Abnahme:
 
