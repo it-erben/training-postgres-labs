@@ -15,6 +15,7 @@ zwischen dem 21.08.2024 und dem 21.08.2026 (UTC). Die Übung setzt keine
 andere Übung voraus.
 
 Arbeite im Query Tool mit `Auto commit` an und `Auto rollback on error` aus.
+Jeder Codeblock ist eine Ausführung, wie in Übung 0 beschrieben.
 Partitionsgrenzen vom Typ `timestamptz` hängen von der Sitzungszeitzone ab,
 wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
 `+00`, etwa `'2024-07-01 00:00+00'`.
@@ -79,19 +80,16 @@ wenn sie ohne Zeitzone geschrieben sind. Schreibe die Grenzen deshalb mit
 
 ## Ergebnis prüfen
 
+Zeilen je Partition:
+
 ```sql
-SET TimeZone = 'UTC';
 SELECT tableoid::regclass AS partition, count(*) AS row_count
 FROM tickets.ticket_partitioned
 GROUP BY tableoid ORDER BY tableoid::regclass::text;
-SELECT count(*) AS partitions FROM pg_inherits
-WHERE inhparent = 'tickets.ticket_partitioned'::regclass;
-EXPLAIN (COSTS OFF) SELECT count(*) FROM tickets.ticket_partitioned
-WHERE created_at >= '2025-01-01' AND created_at < '2025-04-01';
 ```
 
-Die erste Abfrage listet die neun Quartalspartitionen mit ihren Zeilen. Die
-Summe ist 800000; die leere DEFAULT-Partition erscheint nicht:
+Die Abfrage listet die neun Quartalspartitionen mit ihren Zeilen. Die Summe
+ist 800000; die leere DEFAULT-Partition erscheint nicht:
 
 ```text
        partition       | row_count
@@ -108,7 +106,14 @@ Summe ist 800000; die leere DEFAULT-Partition erscheint nicht:
 (9 rows)
 ```
 
-Die zweite zählt zehn Partitionen, die DEFAULT-Partition eingeschlossen:
+Zahl der Partitionen:
+
+```sql
+SELECT count(*) AS partitions FROM pg_inherits
+WHERE inhparent = 'tickets.ticket_partitioned'::regclass;
+```
+
+Sie zählt zehn, die DEFAULT-Partition eingeschlossen:
 
 ```text
  partitions
@@ -117,7 +122,16 @@ Die zweite zählt zehn Partitionen, die DEFAULT-Partition eingeschlossen:
 (1 row)
 ```
 
-Der Plan nennt nur `ticket_2025q1`:
+Der Plan für das erste Quartal 2025:
+
+```sql
+EXPLAIN (COSTS OFF)
+SELECT count(*) FROM tickets.ticket_partitioned
+WHERE created_at >= '2025-01-01 00:00+00' AND created_at < '2025-04-01 00:00+00';
+```
+
+Er nennt nur `ticket_2025q1`. Die Grenzen erscheinen in der Zeitzone der
+Sitzung, auf dem Kurscluster UTC:
 
 ```text
                                                                          QUERY PLAN
