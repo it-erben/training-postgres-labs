@@ -11,7 +11,8 @@ welcher Teil einer Abfrage auf der Gegenseite läuft und welcher lokal.
 
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
-Tool mit `Auto commit` an und `Auto rollback on error` aus.
+Tool mit `Auto commit` an und `Auto rollback on error` aus. Jeder Codeblock
+ist eine Ausführung, wie in Übung 0 beschrieben.
 
 `postgres_fdw` ist keine vertrauenswürdige Erweiterung. Die Rolle `app`
 kann sie nicht selbst anlegen:
@@ -22,7 +23,7 @@ HINT:  Must be superuser to create this extension.
 ```
 
 Der SQLSTATE dazu ist `42501`. Ein Superuser muss deshalb vorab einmal in
-deiner Datenbank ausführen:
+deiner Datenbank ausführen, beide Anweisungen als eine Ausführung:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS postgres_fdw;
@@ -70,16 +71,14 @@ Die Gegenseite ist deine eigene Datenbank `app`, erreicht über den Dienst
 
 ## Ergebnis prüfen
 
+Beide Wege zählen dieselben Tickets:
+
 ```sql
 SELECT (SELECT count(*) FROM tickets.ticket t JOIN tickets.agent a ON a.id = t.agent_id
         WHERE a.team = 'Technical' AND t.status = 'open') AS local,
        (SELECT count(*) FROM remote.ticket t JOIN remote.agent a ON a.id = t.agent_id
         WHERE a.team = 'Technical' AND t.status = 'open') AS remote;
-EXPLAIN (VERBOSE, COSTS OFF)
-SELECT count(*) FROM remote.ticket WHERE status = 'open';
 ```
-
-Die erste Abfrage zählt auf beiden Wegen dieselben Tickets:
 
 ```text
  local | remote
@@ -91,8 +90,14 @@ Die erste Abfrage zählt auf beiden Wegen dieselben Tickets:
 Nach Übung 8 zählt deren Nachtrag mit, ein offenes Ticket von Agent 1 aus
 `Technical`: Dann steht auf beiden Wegen 3785.
 
-Im Plan der zweiten laufen Filter und Zählung auf der Gegenseite. Lokal
-bleibt ein einziger `Foreign Scan`. Referenzlauf auf dem Kurscluster
+Filter und Zählung laufen auf der Gegenseite:
+
+```sql
+EXPLAIN (VERBOSE, COSTS OFF)
+SELECT count(*) FROM remote.ticket WHERE status = 'open';
+```
+
+Lokal bleibt ein einziger `Foreign Scan`. Referenzlauf auf dem Kurscluster
 `trainer-pg`:
 
 ```text
