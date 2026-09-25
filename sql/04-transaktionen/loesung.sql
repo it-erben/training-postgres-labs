@@ -1,5 +1,6 @@
 -- Musterlösung zu SQL-Übung 4. Der ausführbare Teil setzt Ticket 1 und 2
--- zurück und legt tickets.assignment_log neu an. Er lässt sich deshalb
+-- zurück und legt tickets.assignment_log neu an. Am Ende erhalten beide
+-- Tickets ihre Agents aus setup.sql zurück. Der Teil lässt sich deshalb
 -- mehrfach ausführen. Die eigentlichen Aufgaben brauchen zwei bis drei
 -- gleichzeitige Verbindungen und stehen deshalb als Kommentar, markiert
 -- mit -- Verbindung A, -- Verbindung B und -- Verbindung C.
@@ -147,3 +148,9 @@ CREATE TABLE tickets.assignment_log (
 SELECT ticket_id, count(*) AS assignments FROM tickets.assignment_log
 GROUP BY ticket_id ORDER BY ticket_id;
 SELECT id, agent_id FROM tickets.ticket WHERE id IN (1, 2) ORDER BY id;
+
+-- Abschluss: Ticket 1 und 2 erhalten ihre Agents aus setup.sql zurück.
+-- Die Übungen 5 und 8 rechnen mit dieser Zuordnung.
+UPDATE tickets.ticket
+SET agent_id = CASE id WHEN 1 THEN 1 WHEN 2 THEN 40 END
+WHERE id IN (1, 2);

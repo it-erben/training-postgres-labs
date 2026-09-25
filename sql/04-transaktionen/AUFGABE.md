@@ -274,6 +274,17 @@ einzige, zuletzt bestätigte Zuweisung. Der Bonus trägt nichts in
 Die zweite zeigt dann für Ticket 1 und 2 NULL in `agent_id`, weil der
 Bonus beide Zuweisungen zurücksetzt.
 
+Gib Ticket 1 und 2 zum Schluss ihre Agents aus `setup.sql` zurück. Die
+Übungen 5 und 8 zählen Tickets je Team und rechnen mit dieser Zuordnung:
+
+```sql
+UPDATE tickets.ticket
+SET agent_id = CASE id WHEN 1 THEN 1 WHEN 2 THEN 40 END
+WHERE id IN (1, 2);
+```
+
+Die zweite Prüfabfrage zeigt danach `1 | 1` und `2 | 40`.
+
 ## Hinweise
 
 Ein reines `SELECT` ohne `FOR UPDATE` verhindert kein gleichzeitiges
