@@ -13,9 +13,10 @@ View für einen Bericht, der bis zu fünf Minuten alt sein darf.
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus. Für Aufgabe 4
-brauchst du zwei Verbindungen A und B.
+brauchst du zwei Verbindungen A und B. Jeder Codeblock ist eine Ausführung,
+wie in Übung 0 beschrieben.
 
-Entferne zu Beginn die Übungsobjekte:
+Entferne zu Beginn die Übungsobjekte. Der Block läuft als eine Ausführung:
 
 ```sql
 DROP MATERIALIZED VIEW IF EXISTS tickets.team_report;
@@ -28,29 +29,32 @@ DELETE FROM tickets.ticket WHERE metadata ? 'course_module08';
 1. Lege `tickets.team_live` als View an: Tickets je Team und Monat.
 
    ```sql
-   SET TimeZone = 'UTC';
    CREATE VIEW tickets.team_live AS
-   SELECT a.team, date_trunc('month', t.created_at)::date AS month,
+   SELECT a.team,
+          date_trunc('month', t.created_at AT TIME ZONE 'UTC')::date AS month,
           count(*) AS tickets_created
    FROM tickets.ticket t
    JOIN tickets.agent a ON a.id = t.agent_id
-   GROUP BY a.team, date_trunc('month', t.created_at);
+   GROUP BY a.team, date_trunc('month', t.created_at AT TIME ZONE 'UTC');
    ```
 
-   Eine View speichert kein Ergebnis. Jede Abfrage auf `team_live` liest
-   den vollständigen Bestand von `ticket` und `agent` zum Zeitpunkt der
-   Abfrage neu.
+   `AT TIME ZONE 'UTC'` legt die Monatsgrenzen unabhängig von der
+   Sitzungszeitzone fest. Eine View speichert kein Ergebnis. Jede Abfrage
+   auf `team_live` liest den vollständigen Bestand von `ticket` und `agent`
+   zum Zeitpunkt der Abfrage neu.
 
 2. Lege `tickets.team_report` als Materialized View mit derselben Abfrage
-   an, dazu einen eindeutigen Index auf `(team, month)`:
+   an, dazu einen eindeutigen Index auf `(team, month)`. Der Block läuft als
+   eine Ausführung:
 
    ```sql
    CREATE MATERIALIZED VIEW tickets.team_report AS
-   SELECT a.team, date_trunc('month', t.created_at)::date AS month,
+   SELECT a.team,
+          date_trunc('month', t.created_at AT TIME ZONE 'UTC')::date AS month,
           count(*) AS tickets_created
    FROM tickets.ticket t
    JOIN tickets.agent a ON a.id = t.agent_id
-   GROUP BY a.team, date_trunc('month', t.created_at);
+   GROUP BY a.team, date_trunc('month', t.created_at AT TIME ZONE 'UTC');
 
    CREATE UNIQUE INDEX team_report_team_month_idx
        ON tickets.team_report (team, month);
@@ -62,31 +66,37 @@ DELETE FROM tickets.ticket WHERE metadata ? 'course_module08';
    Unique-Index über alle Zeilen der Materialized View.
 
 3. Füge einen Nachtrag ein und zeige die Abweichung zwischen View und
-   Materialized View. Führe die drei Anweisungen nacheinander einzeln aus
-   (Cursor in die Anweisung, `Execute query`), sonst zeigt `Data Output`
-   nur das Ergebnis der letzten:
+   Materialized View. Zuerst die Summen vor dem Nachtrag:
 
    ```sql
    SELECT (SELECT sum(tickets_created) FROM tickets.team_live) AS view_total,
           (SELECT sum(tickets_created) FROM tickets.team_report) AS matview_total;
+   ```
 
+   ```text
+    view_total | matview_total
+   ------------+---------------
+        720159 |        720159
+   (1 row)
+   ```
+
+   Der Nachtrag:
+
+   ```sql
    INSERT INTO tickets.ticket (agent_id, subject, status, priority, metadata, created_at)
    VALUES (1, 'Nachtrag fuer Teambericht', 'open', 1, '{"course_module08": true}',
            tickets.seed_base_date());
+   ```
 
+   Dieselbe Abfrage wie vor dem Nachtrag, als eigener Block:
+
+   ```sql
    SELECT (SELECT sum(tickets_created) FROM tickets.team_live) AS view_total,
           (SELECT sum(tickets_created) FROM tickets.team_report) AS matview_total;
    ```
 
-   Referenzlauf:
-
    ```text
-    view_total | matview_total 
-   ------------+---------------
-        720159 |        720159
-   (1 row)
-
-    view_total | matview_total 
+    view_total | matview_total
    ------------+---------------
         720160 |        720159
    (1 row)
@@ -104,24 +114,30 @@ DELETE FROM tickets.ticket WHERE metadata ? 'course_module08';
 
    ```sql
    SET application_name = 'exercise_a';
+   ```
+
+   Danach in A, beide Anweisungen als eine Ausführung:
+
+   ```sql
    BEGIN;
    SELECT count(*) FROM tickets.team_report;
    ```
 
-   Die Transaktion bleibt offen. In B zuerst die beiden Einstellungen:
+   Die Transaktion bleibt offen. In B zuerst die beiden Einstellungen, als
+   eine Ausführung:
 
    ```sql
    SET application_name = 'exercise_b';
    SET lock_timeout = '1s';
    ```
 
-   Danach, als eigene Ausführung in B:
+   Danach in B:
 
    ```sql
    REFRESH MATERIALIZED VIEW tickets.team_report;
    ```
 
-   Stünden `SET` und `REFRESH` in einer Markierung, liefen sie als eine
+   Stünden `SET` und `REFRESH` in einer Ausführung, liefen sie als eine
    Transaktion, und der Fehler nähme auch `SET lock_timeout` wieder zurück.
 
    Der gewöhnliche `REFRESH` nimmt eine `ACCESS EXCLUSIVE`-Sperre auf die
@@ -152,22 +168,29 @@ DELETE FROM tickets.ticket WHERE metadata ? 'course_module08';
 
 ## Ergebnis prüfen
 
+Nach dem `REFRESH ... CONCURRENTLY` aus Aufgabe 4 stimmen beide Summen
+überein:
+
 ```sql
 SELECT (SELECT sum(tickets_created) FROM tickets.team_live) AS view_total,
        (SELECT sum(tickets_created) FROM tickets.team_report) AS matview_total;
-SELECT matviewname, ispopulated FROM pg_matviews WHERE schemaname = 'tickets';
-RESET TimeZone;
 ```
 
-Referenzlauf nach dem `REFRESH ... CONCURRENTLY` aus Aufgabe 4:
-
 ```text
- view_total | matview_total 
+ view_total | matview_total
 ------------+---------------
      720160 |        720160
 (1 row)
+```
 
- matviewname | ispopulated 
+Die Materialized View ist befüllt:
+
+```sql
+SELECT matviewname, ispopulated FROM pg_matviews WHERE schemaname = 'tickets';
+```
+
+```text
+ matviewname | ispopulated
 -------------+-------------
  team_report | t
 (1 row)
