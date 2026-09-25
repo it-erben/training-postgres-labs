@@ -18,7 +18,13 @@ Arbeite in allen drei mit `Auto commit` an und `Auto rollback on error`
 aus. Aufgabe 4 lässt eine Transaktion bewusst mit einem Fehler enden, in
 Aufgabe 1 und 3 bleiben Transaktionen absichtlich eine Weile offen.
 
-Setze Ticket 1 und 2 zurück und lege die Protokolltabelle an:
+Jeder Codeblock ist eine Ausführung, wie in Übung 0 beschrieben. Viele
+Blöcke dieser Übung enthalten mehrere Anweisungen und laufen trotzdem als
+eine Ausführung. Beginnt ein Block mit `BEGIN`, bleibt die Transaktion
+danach offen. Endet er mit `COMMIT`, ist sie danach abgeschlossen.
+
+Setze Ticket 1 und 2 zurück und lege die Protokolltabelle an, als eine
+Ausführung:
 
 ```sql
 UPDATE tickets.ticket SET agent_id = NULL WHERE id IN (1, 2);
@@ -152,15 +158,25 @@ Sitzungen gezielt in `pg_stat_activity`.
    ```sql
    BEGIN ISOLATION LEVEL SERIALIZABLE;
    SELECT id, agent_id FROM tickets.ticket WHERE id = 1;
-   UPDATE tickets.ticket SET agent_id = 1 WHERE id = 1 AND agent_id IS NULL;
    ```
 
-   Die Transaktion bleibt offen. In B, nachdem beide dieselbe
-   Ausgangslage `agent_id = NULL` gelesen haben:
+   In B:
 
    ```sql
    BEGIN ISOLATION LEVEL SERIALIZABLE;
    SELECT id, agent_id FROM tickets.ticket WHERE id = 1;
+   ```
+
+   Beide lesen dieselbe Ausgangslage `agent_id = NULL`. Weise in A zu, die
+   Transaktion bleibt offen:
+
+   ```sql
+   UPDATE tickets.ticket SET agent_id = 1 WHERE id = 1 AND agent_id IS NULL;
+   ```
+
+   Danach in B:
+
+   ```sql
    UPDATE tickets.ticket SET agent_id = 2 WHERE id = 1 AND agent_id IS NULL;
    ```
 
@@ -244,22 +260,30 @@ Transaktion regulär fortsetzen und abschließen.
 
 ## Ergebnis prüfen
 
+Referenzlauf nach den Aufgaben 1 bis 4 in der beschriebenen Reihenfolge.
+Zuerst die protokollierten Zuweisungen:
+
 ```sql
 SELECT ticket_id, count(*) AS assignments FROM tickets.assignment_log
 GROUP BY ticket_id ORDER BY ticket_id;
-SELECT id, agent_id FROM tickets.ticket WHERE id IN (1, 2) ORDER BY id;
 ```
 
-Referenzlauf nach den Aufgaben 1 bis 4 in der beschriebenen Reihenfolge:
-
 ```text
- ticket_id | assignments 
+ ticket_id | assignments
 -----------+-------------
          1 |           4
          2 |           1
 (2 rows)
+```
 
- id | agent_id 
+Danach der tatsächliche Stand der beiden Tickets:
+
+```sql
+SELECT id, agent_id FROM tickets.ticket WHERE id IN (1, 2) ORDER BY id;
+```
+
+```text
+ id | agent_id
 ----+----------
   1 |        1
   2 |        1
