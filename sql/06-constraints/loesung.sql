@@ -1,23 +1,26 @@
--- Musterlösung zu SQL-Übung 6. Läuft vollständig im Query Tool und lässt
--- sich wiederholen: Der Rücksetzblock entfernt zu Beginn alle
--- Übungsobjekte. ticket_metadata_gin (Übungen 2 und 5) bleibt unberührt.
-SET search_path = tickets;
+-- Musterlösung zu SQL-Übung 6. Im Query Tool abschnittsweise ausführen:
+-- jeden mit "-- Abschnitt" beginnenden Block einzeln markieren und mit F5
+-- ausführen. Abschnitt 1 entfernt alle Übungsobjekte, die Datei lässt sich
+-- deshalb wiederholen. ticket_metadata_gin (Übungen 2 und 5) bleibt
+-- unberührt.
 
+-- Abschnitt 1: Übungsobjekte entfernen
 DROP TABLE IF EXISTS tickets.ticket_ref;
 DROP TABLE IF EXISTS tickets.on_call;
-ALTER TABLE ticket DROP CONSTRAINT IF EXISTS ticket_priority_check;
-DROP INDEX IF EXISTS comment_parent_idx;
+ALTER TABLE tickets.ticket DROP CONSTRAINT IF EXISTS ticket_priority_check;
+DROP INDEX IF EXISTS tickets.comment_parent_idx;
 
--- Aufgabe 1: CHECK zuerst NOT VALID anlegen (eigene, sofort bestätigte
--- Anweisung), danach VALIDATE CONSTRAINT in einer offenen Transaktion
--- beobachten. Mit zwei Verbindungen wird sichtbar, dass VALIDATE
--- CONSTRAINT nur SHARE UPDATE EXCLUSIVE hält. Ergebnis siehe AUFGABE.md:
--- ShareUpdateExclusiveLock, granted = t, und UPDATE 1 in B läuft trotz
--- offener Transaktion in A durch. Liefe ADD CONSTRAINT in derselben
+-- Abschnitt 2 (Aufgabe 1): CHECK zuerst NOT VALID anlegen, als eigene,
+-- sofort bestätigte Ausführung. Liefe ADD CONSTRAINT in derselben
 -- Transaktion wie VALIDATE CONSTRAINT, bliebe seine ACCESS EXCLUSIVE-Sperre
 -- bis zum COMMIT bestehen und würde das UPDATE in B blockieren.
-ALTER TABLE ticket
-    ADD CONSTRAINT ticket_priority_check CHECK (priority BETWEEN 1 AND 4) NOT VALID;
+ALTER TABLE tickets.ticket
+    ADD CONSTRAINT ticket_priority_check
+    CHECK (priority BETWEEN 1 AND 4) NOT VALID;
+
+-- Aufgabe 1 mit zwei Verbindungen. Ergebnis siehe AUFGABE.md:
+-- ShareUpdateExclusiveLock, granted = t, und UPDATE 1 in B läuft trotz
+-- offener Transaktion in A durch.
 --
 -- Verbindung A:
 -- SET application_name = 'exercise_a';
@@ -35,15 +38,15 @@ ALTER TABLE ticket
 --
 -- Verbindung A:
 -- COMMIT;
---
--- Der ausführbare Teil bildet denselben Effekt in einer Verbindung nach.
-ALTER TABLE ticket VALIDATE CONSTRAINT ticket_priority_check;
 
--- Aufgabe 2: Fremdschlüssel ohne unterstützenden Index finden (Ergebnis
--- siehe AUFGABE.md: comment_parent_id_fkey, comment_ticket_id_fkey,
--- ticket_agent_id_fkey), Index für comment.parent_id anlegen. Ein
--- Teilindex wie ticket_open_idx aus Übung 2 zählt nicht, weil er nur einen
--- Teil der Zeilen enthält.
+-- Abschnitt 3 (Aufgabe 1): Der ausführbare Teil validiert in einer
+-- Verbindung.
+ALTER TABLE tickets.ticket VALIDATE CONSTRAINT ticket_priority_check;
+
+-- Abschnitt 4 (Aufgabe 2): Fremdschlüssel ohne unterstützenden Index.
+-- Ergebnis: comment_parent_id_fkey, comment_ticket_id_fkey,
+-- ticket_agent_id_fkey. Ein Teilindex wie ticket_open_idx aus Übung 2
+-- zählt nicht, weil er nur einen Teil der Zeilen enthält.
 SELECT c.conrelid::regclass AS table_name, c.conname
 FROM pg_constraint c
 WHERE c.contype = 'f'
@@ -56,43 +59,51 @@ WHERE c.contype = 'f'
   )
 ORDER BY c.conname;
 
-CREATE INDEX comment_parent_idx ON comment (parent_id);
+-- Abschnitt 5 (Aufgabe 2): Index für comment.parent_id
+CREATE INDEX comment_parent_idx ON tickets.comment (parent_id);
 
--- Aufgabe 3: Bereitschaftsplan ohne überlappende Zeiträume je Agent
+-- Abschnitt 6 (Aufgabe 3): Bereitschaftsplan ohne überlappende Zeiträume
+-- je Agent
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-CREATE TABLE on_call (
-    agent_id bigint REFERENCES agent(id),
+CREATE TABLE tickets.on_call (
+    agent_id bigint REFERENCES tickets.agent(id),
     time_range tstzrange NOT NULL,
     EXCLUDE USING gist (agent_id WITH =, time_range WITH &&)
 );
 
--- Aufgabe 4: zwei angrenzende Zeiträume (erlaubt). Der überlappende
--- Zeitraum scheitert mit 23P01 und steht deshalb nur als Kommentar da.
--- Im selben Abfragestring rollte sein Fehler auch die beiden erlaubten
--- Zeilen zurück.
-INSERT INTO on_call (agent_id, time_range) VALUES
+-- Abschnitt 7 (Aufgabe 4): zwei angrenzende Zeiträume, erlaubt
+INSERT INTO tickets.on_call (agent_id, time_range) VALUES
     (1, tstzrange('2026-09-01 00:00+00', '2026-09-08 00:00+00', '[)')),
     (1, tstzrange('2026-09-08 00:00+00', '2026-09-15 00:00+00', '[)'));
--- INSERT INTO on_call (agent_id, time_range)
+
+-- Aufgabe 4, erwarteter Fehler, im Query Tool als eigene Ausführung:
+-- INSERT INTO tickets.on_call (agent_id, time_range)
 -- VALUES (1, tstzrange('2026-09-05 00:00+00', '2026-09-10 00:00+00', '[)'));
 -- -- ERROR: 23P01: conflicting key value violates exclusion constraint
 -- -- "on_call_agent_id_time_range_excl"
 
--- Aufgabe 5: aufschiebbarer Fremdschlüssel, Prüfung erst beim COMMIT
-CREATE TABLE ticket_ref (
+-- Abschnitt 8 (Aufgabe 5): aufschiebbarer Fremdschlüssel
+CREATE TABLE tickets.ticket_ref (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    ticket_id bigint NOT NULL REFERENCES ticket(id) DEFERRABLE INITIALLY DEFERRED
+    ticket_id bigint NOT NULL
+        REFERENCES tickets.ticket(id) DEFERRABLE INITIALLY DEFERRED
 );
+
+-- Aufgabe 5, erwarteter Fehler beim COMMIT, im Query Tool als zwei
+-- Ausführungen:
 -- BEGIN;
--- INSERT INTO ticket_ref (ticket_id) VALUES (9999999);
+-- INSERT INTO tickets.ticket_ref (ticket_id) VALUES (9999999);
 -- -- INSERT 0 1, ohne Fehler: Ticket 9999999 existiert nicht.
 -- COMMIT;
 -- -- ERROR: 23503: insert or update on table "ticket_ref" violates
 -- -- foreign key constraint "ticket_ref_ticket_id_fkey"
 
--- Kontrolle (Ergebnis siehe AUFGABE.md)
+-- Abschnitt 9: Kontrolle der beiden Regeln
 SELECT conname, contype, convalidated FROM pg_constraint
-WHERE conrelid IN ('ticket'::regclass, 'on_call'::regclass)
+WHERE conrelid IN ('tickets.ticket'::regclass, 'tickets.on_call'::regclass)
   AND contype IN ('c', 'x') ORDER BY conname;
-SELECT agent_id, time_range FROM on_call ORDER BY agent_id, lower(time_range);
+
+-- Abschnitt 10: Kontrolle der Bereitschaftszeiten
+SELECT agent_id, time_range FROM tickets.on_call
+ORDER BY agent_id, lower(time_range);

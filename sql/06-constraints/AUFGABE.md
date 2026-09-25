@@ -16,11 +16,12 @@ Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus, denn Aufgabe 4
 und 5 lösen absichtlich Fehler aus. Für Aufgabe 1 brauchst du zwei
-Verbindungen A und B.
+Verbindungen A und B. Jeder Codeblock ist eine Ausführung, wie in Übung 0
+beschrieben.
 
 Entferne zu Beginn die Übungsobjekte, damit sich die Übung wiederholen
 lässt. `ticket_metadata_gin` aus den Übungen 2 und 5 bleibt davon
-unberührt:
+unberührt. Der Block läuft als eine Ausführung:
 
 ```sql
 DROP TABLE IF EXISTS tickets.ticket_ref;
@@ -37,18 +38,19 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    in einer offenen Transaktion beobachtest. Läuft `ADD CONSTRAINT` in
    derselben Transaktion wie `VALIDATE CONSTRAINT`, bleibt seine kurze,
    aber starke Sperre bis zum `COMMIT` bestehen und verfälscht die
-   Beobachtung. Führe in A die beiden folgenden Blöcke nacheinander
-   einzeln aus. Als eine Markierung liefe `ADD CONSTRAINT` in der
-   Transaktion, die `BEGIN` öffnet. Erster Block in A:
+   Beobachtung. In A:
 
    ```sql
    SET application_name = 'exercise_a';
+   ```
+
+   ```sql
    ALTER TABLE tickets.ticket
        ADD CONSTRAINT ticket_priority_check
        CHECK (priority BETWEEN 1 AND 4) NOT VALID;
    ```
 
-   Zweiter Block in A:
+   Danach in A, beide Anweisungen als eine Ausführung:
 
    ```sql
    BEGIN;
@@ -87,7 +89,11 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    UPDATE 1
    ```
 
-   Schließe danach A ab: `COMMIT;`
+   Schließe danach A ab:
+
+   ```sql
+   COMMIT;
+   ```
 
    `ADD CONSTRAINT ... NOT VALID` nimmt kurz `ACCESS EXCLUSIVE`. Den
    Bestand prüft es nicht, und die Sperre gibt es mit dem Ende der
@@ -143,7 +149,8 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    ```
 
 3. Lege `tickets.on_call(agent_id, time_range)` an. Kein Agent darf zwei
-   sich überlappende Bereitschaftszeiten haben:
+   sich überlappende Bereitschaftszeiten haben. Der Block läuft als eine
+   Ausführung:
 
    ```sql
    CREATE EXTENSION IF NOT EXISTS btree_gist;
@@ -179,10 +186,8 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    `[)` schließt die obere Grenze aus, `2026-09-08 00:00+00` gehört nur
    zum zweiten Zeitraum. Deshalb läuft das `INSERT` durch.
 
-   Füge danach eine Zeit ein, die beide überlappt. Markiere diese
-   Anweisung allein und führe sie getrennt vom ersten Block aus. pgAdmin
-   schickt eine Markierung mit mehreren Anweisungen als eine Transaktion.
-   Stünden beide `INSERT`-Anweisungen darin, rollte der Fehler auch die
+   Füge danach eine Zeit ein, die beide überlappt. Stünden beide
+   `INSERT`-Anweisungen in einer Ausführung, rollte der Fehler auch die
    beiden erlaubten Zeilen zurück, und `tickets.on_call` bliebe leer.
 
    ```sql
@@ -211,18 +216,26 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    );
    ```
 
-   Führe die Transaktion danach als eigenen Block aus. In derselben
-   Markierung gehörte `CREATE TABLE` zur Transaktion, und der Fehler beim
-   `COMMIT` nähme auch die Tabelle wieder mit:
+   Öffne danach eine Transaktion und füge eine Zeile ein, deren Ticket nicht
+   existiert. Beide Anweisungen laufen als eine Ausführung, die Transaktion
+   bleibt offen. Stünde `CREATE TABLE` in derselben Ausführung, gehörte es
+   zur Transaktion, und der Fehler beim `COMMIT` nähme die Tabelle mit:
 
    ```sql
    BEGIN;
    INSERT INTO tickets.ticket_ref (ticket_id) VALUES (9999999);
-   -- INSERT 0 1, ohne Fehler: Ticket 9999999 existiert nicht.
-   COMMIT;
-   -- ERROR: 23503: insert or update on table "ticket_ref" violates
-   -- foreign key constraint "ticket_ref_ticket_id_fkey"
    ```
+
+   Die Meldung lautet `INSERT 0 1`, ohne Fehler, obwohl Ticket 9999999
+   nicht existiert. Schließe die Transaktion ab:
+
+   ```sql
+   COMMIT;
+   ```
+
+   `COMMIT` endet mit SQLSTATE `23503`:
+   `insert or update on table "ticket_ref" violates foreign key constraint
+   "ticket_ref_ticket_id_fkey"`.
 
    Mit `DEFERRABLE INITIALLY DEFERRED` prüft PostgreSQL erst am Ende der
    Transaktion. Das `INSERT` selbst meldet keinen Fehler, obwohl die
@@ -232,25 +245,32 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
 
 ## Ergebnis prüfen
 
+Die beiden Regeln, jede validiert:
+
 ```sql
-SET TimeZone = 'UTC';
 SELECT conname, contype, convalidated FROM pg_constraint
 WHERE conrelid IN ('tickets.ticket'::regclass, 'tickets.on_call'::regclass)
   AND contype IN ('c', 'x') ORDER BY conname;
-SELECT agent_id, time_range FROM tickets.on_call ORDER BY agent_id, lower(time_range);
-RESET TimeZone;
 ```
 
-Referenzlauf:
-
 ```text
-             conname              | contype | convalidated 
+             conname              | contype | convalidated
 ----------------------------------+---------+--------------
  on_call_agent_id_time_range_excl | x       | t
  ticket_priority_check            | c       | t
 (2 rows)
+```
 
- agent_id |                     time_range                      
+Die beiden erlaubten Bereitschaftszeiten. `time_range` erscheint in der
+Zeitzone der Sitzung, auf dem Kurscluster UTC:
+
+```sql
+SELECT agent_id, time_range FROM tickets.on_call
+ORDER BY agent_id, lower(time_range);
+```
+
+```text
+ agent_id |                     time_range
 ----------+-----------------------------------------------------
         1 | ["2026-09-01 00:00:00+00","2026-09-08 00:00:00+00")
         1 | ["2026-09-08 00:00:00+00","2026-09-15 00:00:00+00")
