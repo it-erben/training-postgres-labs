@@ -66,10 +66,16 @@ die übrigen Query Tools nach Aufgabe 3.
           4 * 20 AS bedarf_rolling_update,
           current_setting('max_connections')::int
             - current_setting('superuser_reserved_connections')::int
-            - current_setting('reserved_connections')::int AS plaetze_fuer_app,
-          count(*) FILTER (WHERE usename = current_user) AS schon_belegt
+            - current_setting('reserved_connections')::int AS plaetze_ohne_reserve,
+          count(*) FILTER (WHERE usename IS NOT NULL
+                             AND datname IS NOT NULL) AS schon_belegt
    FROM pg_stat_activity;
    ```
+
+   `schon_belegt` zählt alle Sitzungen mit Rolle und Datenbank, auch
+   fremde: Die Plätze ohne Reserve teilen sich deine Werkzeuge, die
+   Anwendung und die Sitzungen, die CloudNativePG selbst öffnet. WAL-Sender
+   der Replikate haben keine Datenbank und belegen keinen Platz.
 
    Beantworte drei Fragen: Passen 60 Verbindungen neben den schon
    belegten? Passen sie während eines Rolling Updates, bei dem kurz ein
@@ -87,7 +93,7 @@ die übrigen Query Tools nach Aufgabe 3.
    Suche sie in Verbindung B:
 
    ```sql
-   SELECT pid, application_name, state,
+   SELECT application_name, state,
           now() - xact_start AS transaktion_seit,
           now() - state_change AS untaetig_seit
    FROM pg_stat_activity
@@ -99,9 +105,9 @@ die übrigen Query Tools nach Aufgabe 3.
    nach dem `SELECT` in A:
 
    ```text
-    pid  | application_name |        state        | transaktion_seit |  untaetig_seit  
-   ------+------------------+---------------------+------------------+-----------------
-    2905 | uebung13_a       | idle in transaction | 00:00:02.008804  | 00:00:01.930188
+    application_name |        state        | transaktion_seit |  untaetig_seit  
+   ------------------+---------------------+------------------+-----------------
+    uebung13_a       | idle in transaction | 00:00:02.00815   | 00:00:01.944547
    (1 row)
    ```
 
@@ -193,8 +199,12 @@ einen Zuwachs um mehr als drei.
 Für deine Anwendung stehen weniger Plätze bereit als `max_connections`.
 `superuser_reserved_connections` hält die letzten Plätze für Superuser
 frei, `reserved_connections` weitere für Rollen mit
-`pg_use_reserved_connections`. Ist der Rest belegt, scheitert die
-nächste Anmeldung von `app` mit `53300`
+`pg_use_reserved_connections`. Den Rest teilen sich alle Sitzungen mit
+Rolle und Datenbank. Bei CloudNativePG gehören dazu der Instance Manager
+des Operators (Rolle `postgres`, `application_name`
+`cnpg-instance-manager`) und der Exporter für Grafana
+(`cnpg_metrics_exporter`). Ist der Rest belegt, scheitert die nächste
+Anmeldung von `app` mit `53300`
 (`remaining connection slots are reserved for roles with the SUPERUSER attribute`).
 Öffne in dieser Übung keine Verbindungen bis zur Grenze.
 
@@ -207,9 +217,9 @@ Die Rolle `app` sieht bei fremden Sitzungen Rolle, Datenbank und
 Aufgabe 4, mit einigen Sekunden Verzögerung.
 
 `25P03` ist ein `FATAL`: Der Server beendet die Verbindung, die offene
-Transaktion wird zurückgerollt. Im Query Tool erscheint eine Meldung
-zur verlorenen Verbindung. Nach dem Neuverbinden gilt die Grenze nicht
-mehr, weil `SET` nur für die Sitzung gilt, in der es lief. Für eine
+Transaktion wird zurückgerollt. Für weitere Befehle in A braucht das
+Query Tool eine neue Verbindung. Dort gilt die Grenze nicht mehr, weil
+`SET` nur für die Sitzung gilt, in der es lief. Für eine
 Anwendung gehört die Grenze an die Rolle, etwa
 `ALTER ROLE app SET idle_in_transaction_session_timeout = '60s'`, oder
 in die Cluster-Ressource.

@@ -36,15 +36,20 @@ SELECT 3 * 20 AS bedarf_anwendung,
        4 * 20 AS bedarf_rolling_update,
        current_setting('max_connections')::int
          - current_setting('superuser_reserved_connections')::int
-         - current_setting('reserved_connections')::int AS plaetze_fuer_app,
-       count(*) FILTER (WHERE usename = current_user) AS schon_belegt
+         - current_setting('reserved_connections')::int AS plaetze_ohne_reserve,
+       count(*) FILTER (WHERE usename IS NOT NULL
+                          AND datname IS NOT NULL) AS schon_belegt
 FROM pg_stat_activity;
--- Mit max_connections 100 bleiben für app 97 Plätze. 60 passen, solange
--- höchstens 37 weitere Verbindungen von app offen sind: pgAdmin,
--- Migrationen, Jobs. Während eines Rolling Updates läuft ein vierter Pod
--- mit weiteren 20; dann bleiben nur noch 17. Mit dem Npgsql-Standard
--- Maximum Pool Size=100 bräuchten drei Pods bis zu 300 Verbindungen, die
--- 98. Anmeldung scheitert mit 53300.
+-- Mit max_connections 100 bleiben 97 Plätze ohne Reserve. Sie teilen sich
+-- alle Sitzungen mit Rolle und Datenbank: pgAdmin, Migrationen, Jobs,
+-- der Instance Manager des Operators (postgres, cnpg-instance-manager)
+-- und der Exporter (cnpg_metrics_exporter). WAL-Sender der Replikate
+-- (streaming_replica) haben keine Datenbank und belegen keinen Platz.
+-- 60 passen, solange schon_belegt höchstens 37 ist. Während eines Rolling
+-- Updates läuft ein vierter Pod mit weiteren 20; dann darf schon_belegt
+-- höchstens 17 sein. Mit dem Npgsql-Standard Maximum Pool Size=100
+-- bräuchten drei Pods bis zu 300 Verbindungen. Sobald die 97 Plätze
+-- belegt sind, scheitert jede weitere Anmeldung von app mit 53300.
 
 -- Aufgabe 4: idle in transaction erzeugen und finden
 --
@@ -55,7 +60,7 @@ FROM pg_stat_activity;
 -- -- 13144; die Transaktion bleibt offen.
 --
 -- Verbindung B:
--- SELECT pid, application_name, state,
+-- SELECT application_name, state,
 --        now() - xact_start AS transaktion_seit,
 --        now() - state_change AS untaetig_seit
 -- FROM pg_stat_activity
