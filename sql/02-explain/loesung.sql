@@ -1,51 +1,74 @@
--- Musterlösung zu SQL-Übung 2. Läuft vollständig im Query Tool und lässt
--- sich wiederholen: CREATE INDEX IF NOT EXISTS überspringt vorhandene Indizes.
--- created_at ist timestamptz. SET TimeZone = 'UTC' macht die in den Plänen
--- gezeigten Literale unabhängig von der Sitzungszeitzone. RESET TimeZone am
--- Ende setzt die Zeitzone der Sitzung auf ihren Standardwert zurück.
-SET search_path = tickets;
-SET TimeZone = 'UTC';
+-- Musterlösung zu SQL-Übung 2. Im Query Tool abschnittsweise ausführen:
+-- jeden mit "-- Abschnitt" beginnenden Block einzeln markieren und mit F5
+-- ausführen. Am Stück zeigt Data Output nur das Ergebnis der letzten
+-- Anweisung. CREATE INDEX IF NOT EXISTS überspringt vorhandene Indizes,
+-- deshalb lässt sich die Datei wiederholen. Die Zeitgrenzen tragen die Zone
+-- +00 und gelten unabhängig von der Sitzungszeitzone.
 
--- Aufgabe 1: Ausgangspläne der drei Zugriffe (Befunde siehe AUFGABE.md)
+-- Abschnitt 1 (Aufgabe 1.1): offene Tickets aus Technical
 EXPLAIN (ANALYZE, BUFFERS)
-SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
+SELECT t.id
+FROM tickets.ticket t
+JOIN tickets.agent a ON a.id = t.agent_id
 WHERE a.team = 'Technical' AND t.status = 'open';
-EXPLAIN (ANALYZE, BUFFERS)
-SELECT id FROM ticket WHERE metadata ? 'escalated';
-EXPLAIN (ANALYZE, BUFFERS)
-SELECT count(*) FROM comment
-WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
 
--- Aufgabe 2: je Zugriff ein Index
+-- Abschnitt 2 (Aufgabe 1.2): Tickets mit dem Schlüssel escalated
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id FROM tickets.ticket WHERE metadata ? 'escalated';
+
+-- Abschnitt 3 (Aufgabe 1.3): Kommentare aus sieben Tagen
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT count(*) FROM tickets.comment
+WHERE created_at >= '2026-01-01 00:00+00'
+  AND created_at < '2026-01-08 00:00+00';
+
+-- Abschnitt 4 (Aufgabe 2): je Zugriff ein Index, danach Statistiken
 CREATE INDEX IF NOT EXISTS ticket_open_idx
-    ON ticket (agent_id) WHERE status <> 'closed';
+    ON tickets.ticket (agent_id) WHERE status <> 'closed';
 CREATE INDEX IF NOT EXISTS ticket_metadata_gin
-    ON ticket USING gin (metadata);
+    ON tickets.ticket USING gin (metadata);
 CREATE INDEX IF NOT EXISTS comment_created_brin
-    ON comment USING brin (created_at);
-ANALYZE ticket;
-ANALYZE comment;
+    ON tickets.comment USING brin (created_at);
+ANALYZE tickets.ticket;
+ANALYZE tickets.comment;
 
--- Aufgabe 3: Pläne erneut vergleichen. ticket_open_idx und
--- ticket_metadata_gin erscheinen zuverlässig. comment_created_brin bleibt
--- ungenutzt, weil created_at nicht mit der physischen Reihenfolge von
--- comment korreliert; siehe AUFGABE.md und Hinweise.
-EXPLAIN (COSTS OFF) SELECT t.id FROM ticket t JOIN agent a ON a.id = t.agent_id
+-- Abschnitt 5 (Aufgabe 3.1): Bitmap Index Scan on ticket_open_idx. Die
+-- offenen Tickets liegen verstreut, der Bitmap Heap Scan liest trotzdem den
+-- größten Teil der Tabelle.
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT t.id
+FROM tickets.ticket t
+JOIN tickets.agent a ON a.id = t.agent_id
 WHERE a.team = 'Technical' AND t.status = 'open';
-EXPLAIN (COSTS OFF) SELECT id FROM ticket WHERE metadata ? 'escalated';
-EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
-WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
 
--- Aufgabe 4: Indexgrößen gegenüber der Tabelle
+-- Abschnitt 6 (Aufgabe 3.2): Bitmap Index Scan on ticket_metadata_gin
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id FROM tickets.ticket WHERE metadata ? 'escalated';
+
+-- Abschnitt 7 (Aufgabe 3.3): weiterhin Parallel Seq Scan on comment.
+-- created_at korreliert nicht mit der physischen Reihenfolge, der
+-- BRIN-Index schließt keinen Block aus.
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT count(*) FROM tickets.comment
+WHERE created_at >= '2026-01-01 00:00+00'
+  AND created_at < '2026-01-08 00:00+00';
+
+-- Abschnitt 8 (Aufgabe 4.1): Indexgrößen
 SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
 FROM pg_stat_user_indexes
 WHERE schemaname = 'tickets' AND relname IN ('agent', 'ticket', 'comment')
 ORDER BY indexrelname;
+
+-- Abschnitt 9 (Aufgabe 4.2): Tabellengrößen
 SELECT pg_size_pretty(pg_relation_size('tickets.ticket')) AS ticket_table,
        pg_size_pretty(pg_relation_size('tickets.comment')) AS comment_table;
 
--- Aufgabe 5: Gegenprobe mit einem Zeitfenster von einem Jahr
-EXPLAIN (COSTS OFF) SELECT count(*) FROM comment
-WHERE created_at >= '2025-01-01' AND created_at < '2026-01-01';
+-- Abschnitt 10 (Aufgabe 5): Gegenprobe mit einem ganzen Jahr
+EXPLAIN (COSTS OFF)
+SELECT count(*) FROM tickets.comment
+WHERE created_at >= '2025-01-01 00:00+00'
+  AND created_at < '2026-01-01 00:00+00';
 
-RESET TimeZone;
+-- Abschnitt 11: Korrelation von created_at mit der physischen Reihenfolge
+SELECT attname, correlation FROM pg_stats
+WHERE schemaname = 'tickets' AND tablename = 'comment' AND attname = 'created_at';
