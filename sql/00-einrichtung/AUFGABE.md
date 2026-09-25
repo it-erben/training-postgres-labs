@@ -76,16 +76,23 @@ ORDER BY ordinal_position;
 
 ## Hinweise
 
-Gegen eine lokale Testinstanz dauerte ein Lauf rund 58 Sekunden. Auf dem
-Kurs-Server kann das anders aussehen. Ein erneuter Lauf von `setup.sql`
+Auf dem Kurscluster `trainer-pg` dauerte ein Lauf am 25.09.2026 rund drei
+Minuten (185 Sekunden), gegen eine lokale Testinstanz rund 41 Sekunden.
+Das Schema belegt danach rund 420 MB. Ein erneuter Lauf von `setup.sql`
 löscht das Schema `tickets` samt aller Übungsobjekte darin und baut es neu
 auf. Mengen und Werte bleiben dabei gleich.
 
 Bleibt der Lauf hängen und bricht nach fünf Sekunden mit
 `ERROR: canceling statement due to lock timeout` ab, hat ein anderer
 Query-Tool-Tab noch eine offene Transaktion auf einer Tabelle im Schema
-`tickets`. Schließe diesen Tab oder führe dort `ROLLBACK;` aus und starte
-`setup.sql` erneut.
+`tickets`. Schließe diesen Tab oder führe dort `ROLLBACK;` aus. Führe
+danach auch in deinem eigenen Query Tool `ROLLBACK;` aus, denn `setup.sql`
+hat dort selbst eine Transaktion geöffnet, die jetzt abgebrochen ist. Ohne
+diesen Schritt endet der nächste Lauf sofort mit `25P02`
+(`current transaction is aborted`). Starte `setup.sql` dann erneut.
+
+Bricht der Lauf mit `No space left on device` ab, ist das Volume deines
+Clusters voll. Sag der Kursleitung Bescheid.
 
 pgAdmin zeigt nur das letzte Ergebnis einer Skriptausführung an. Die
 Kontrollabfrage steht deshalb am Ende von `setup.sql`.

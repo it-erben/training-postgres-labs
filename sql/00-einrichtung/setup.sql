@@ -1,11 +1,19 @@
 -- Legt das Schema tickets mit dem Datenbestand der SQL-Übungen an.
 -- Einmal vollständig im Query Tool ausführen (F5). Ein erneuter Lauf
 -- löscht das Schema tickets samt aller Übungsobjekte darin und baut es neu auf.
--- Dauer: etwa eine Minute. Andere Schemas bleiben unberührt.
+-- Dauer: auf dem Kurscluster rund drei Minuten. Andere Schemas bleiben
+-- unberührt.
+--
+-- Das alte Schema verschwindet in einer eigenen Transaktion. So gibt ein
+-- erneuter Lauf dessen Platz frei, bevor der neue Bestand entsteht.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+DROP SCHEMA IF EXISTS tickets CASCADE;
+COMMIT;
+
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL search_path = tickets;
-DROP SCHEMA IF EXISTS tickets CASCADE;
 CREATE SCHEMA tickets;
 
 CREATE FUNCTION seed_rand(i bigint, stream text) RETURNS double precision
@@ -20,15 +28,15 @@ CREATE FUNCTION seed_base_date() RETURNS timestamptz
 $$;
 
 CREATE TABLE agent (
-    id bigint generated always as identity primary key,
+    id bigint generated always as identity,
     name text not null,
-    email text not null unique,
+    email text not null,
     team text not null
 );
 
 CREATE TABLE ticket (
-    id bigint generated always as identity primary key,
-    agent_id bigint references agent(id),
+    id bigint generated always as identity,
+    agent_id bigint,
     subject text not null,
     status text not null,
     priority int not null,
@@ -38,9 +46,9 @@ CREATE TABLE ticket (
 );
 
 CREATE TABLE comment (
-    id bigint generated always as identity primary key,
-    ticket_id bigint not null references ticket(id),
-    parent_id bigint references comment(id),
+    id bigint generated always as identity,
+    ticket_id bigint not null,
+    parent_id bigint,
     author text not null,
     body text not null,
     created_at timestamptz not null
@@ -119,6 +127,12 @@ SELECT
 FROM ticket_rows
 ORDER BY id;
 
+-- Schlüssel und Fremdschlüssel entstehen erst nach dem Laden. Ein Index,
+-- der in einem Schritt gebaut wird, und eine Fremdschlüsselprüfung als eine
+-- Abfrage schreiben deutlich weniger WAL als Einträge und Zeilensperren je Zeile.
+ALTER TABLE agent ADD PRIMARY KEY (id), ADD UNIQUE (email);
+ALTER TABLE ticket ADD PRIMARY KEY (id), ADD FOREIGN KEY (agent_id) REFERENCES agent (id);
+
 -- comment.parent_id bildet echte Baumstrukturen für die rekursive CTE in
 -- Modul 05. Jeder Kommentar außer dem ersten je Ticket wählt zufällig einen
 -- der schon erzeugten Kommentare desselben Tickets als Elternteil. Das kann
@@ -139,65 +153,87 @@ ORDER BY id;
 -- ihres Tickets und dem Basisdatum, jede weitere Ebene zwischen dem
 -- created_at ihres Elternteils und dem Basisdatum. So liegt kein Kommentar
 -- vor seinem Ticket oder vor seinem eigenen Elternteil.
-WITH RECURSIVE raw_shape AS (
-    SELECT t.id AS ticket_id, local_rn
-    FROM generate_series(1, (800000)::bigint) AS t(id)
-    CROSS JOIN LATERAL generate_series(1, 4) AS local_rn
-    WHERE local_rn = 1
-       OR seed_rand(t.id * 10 + local_rn, 'comment_keep') < (CASE local_rn WHEN 2 THEN 0.65 WHEN 3 THEN 0.5 WHEN 4 THEN 0.35 END)
-),
-shaped AS (
-    SELECT
-        ticket_id,
-        local_rn,
-        row_number() OVER (PARTITION BY ticket_id ORDER BY local_rn) AS survivor_rn,
-        row_number() OVER (ORDER BY ticket_id, local_rn) AS global_rn
-    FROM raw_shape
-),
-withparent AS (
-    SELECT
-        ticket_id, local_rn, survivor_rn, global_rn,
-        CASE WHEN survivor_rn = 1 THEN NULL
-             ELSE 1 + floor(seed_rand(ticket_id * 10 + survivor_rn, 'comment_parent_pick') * (survivor_rn - 1))::int
-        END AS parent_survivor_rn
-    FROM shaped
-),
-comment_tree AS (
-    SELECT
-        w.ticket_id, w.local_rn, w.survivor_rn, w.global_rn, w.parent_survivor_rn,
-        LEAST(
-            tk.created_at + interval '10 minutes' + seed_rand(w.ticket_id * 10 + w.local_rn, 'comment_created_offset') * interval '5 days',
-            seed_base_date()
-        ) AS created_at
-    FROM withparent w
-    JOIN ticket tk ON tk.id = w.ticket_id
-    WHERE w.parent_survivor_rn IS NULL
+--
+-- Die Kommentare entstehen in Blöcken zu 100000 Tickets. Sortierungen und
+-- Zwischenergebnisse jedes Blocks passen in kleinere temporäre Dateien, die
+-- am Ende jeder Anweisung wieder frei werden. inserted führt die laufende
+-- Nummer über die Blöcke fort, damit parent_id dieselben Werte trägt.
+DO $$
+DECLARE
+    chunk_size constant bigint := 100000;
+    first_ticket bigint;
+    inserted bigint := 0;
+    n bigint;
+BEGIN
+    FOR first_ticket IN SELECT generate_series(1, 800000, chunk_size) LOOP
+        WITH RECURSIVE raw_shape AS (
+            SELECT t.id AS ticket_id, local_rn
+            FROM generate_series(first_ticket, first_ticket + chunk_size - 1) AS t(id)
+            CROSS JOIN LATERAL generate_series(1, 4) AS local_rn
+            WHERE local_rn = 1
+               OR seed_rand(t.id * 10 + local_rn, 'comment_keep') < (CASE local_rn WHEN 2 THEN 0.65 WHEN 3 THEN 0.5 WHEN 4 THEN 0.35 END)
+        ),
+        shaped AS (
+            SELECT
+                ticket_id,
+                local_rn,
+                row_number() OVER (PARTITION BY ticket_id ORDER BY local_rn) AS survivor_rn,
+                inserted + row_number() OVER (ORDER BY ticket_id, local_rn) AS global_rn
+            FROM raw_shape
+        ),
+        withparent AS (
+            SELECT
+                ticket_id, local_rn, survivor_rn, global_rn,
+                CASE WHEN survivor_rn = 1 THEN NULL
+                     ELSE 1 + floor(seed_rand(ticket_id * 10 + survivor_rn, 'comment_parent_pick') * (survivor_rn - 1))::int
+                END AS parent_survivor_rn
+            FROM shaped
+        ),
+        comment_tree AS (
+            SELECT
+                w.ticket_id, w.local_rn, w.survivor_rn, w.global_rn, w.parent_survivor_rn,
+                LEAST(
+                    tk.created_at + interval '10 minutes' + seed_rand(w.ticket_id * 10 + w.local_rn, 'comment_created_offset') * interval '5 days',
+                    seed_base_date()
+                ) AS created_at
+            FROM withparent w
+            JOIN ticket tk ON tk.id = w.ticket_id
+            WHERE w.parent_survivor_rn IS NULL
 
-    UNION ALL
+            UNION ALL
 
-    SELECT
-        w.ticket_id, w.local_rn, w.survivor_rn, w.global_rn, w.parent_survivor_rn,
-        LEAST(
-            ct.created_at + interval '10 minutes' + seed_rand(w.ticket_id * 10 + w.local_rn, 'comment_created_offset') * interval '5 days',
-            seed_base_date()
-        ) AS created_at
-    FROM withparent w
-    JOIN comment_tree ct ON ct.ticket_id = w.ticket_id AND ct.survivor_rn = w.parent_survivor_rn
-)
-INSERT INTO comment (ticket_id, parent_id, author, body, created_at)
-SELECT
-    ct.ticket_id,
-    parent.global_rn,
-    (ARRAY['Kunde','Support'])[1 + floor(seed_rand(ct.ticket_id * 10 + ct.local_rn, 'comment_role') * 2)::int] || ' #' || ct.ticket_id,
-    (ARRAY['Danke für die Rückmeldung.','Können Sie das genauer beschreiben?',
-           'Ich habe das Problem reproduziert.','Wird an das Fachteam weitergegeben.',
-           'Ist das jetzt gelöst?','Bitte prüfen Sie die angehängten Logs.',
-           'Ich kümmere mich morgen darum.','Vielen Dank für Ihre Geduld.'])[1 + floor(seed_rand(ct.ticket_id * 10 + ct.local_rn, 'comment_body') * 8)::int],
-    ct.created_at
-FROM comment_tree ct
-LEFT JOIN comment_tree parent
-    ON parent.ticket_id = ct.ticket_id AND parent.survivor_rn = ct.parent_survivor_rn
-ORDER BY ct.global_rn;
+            SELECT
+                w.ticket_id, w.local_rn, w.survivor_rn, w.global_rn, w.parent_survivor_rn,
+                LEAST(
+                    ct.created_at + interval '10 minutes' + seed_rand(w.ticket_id * 10 + w.local_rn, 'comment_created_offset') * interval '5 days',
+                    seed_base_date()
+                ) AS created_at
+            FROM withparent w
+            JOIN comment_tree ct ON ct.ticket_id = w.ticket_id AND ct.survivor_rn = w.parent_survivor_rn
+        )
+        INSERT INTO comment (ticket_id, parent_id, author, body, created_at)
+        SELECT
+            ct.ticket_id,
+            parent.global_rn,
+            (ARRAY['Kunde','Support'])[1 + floor(seed_rand(ct.ticket_id * 10 + ct.local_rn, 'comment_role') * 2)::int] || ' #' || ct.ticket_id,
+            (ARRAY['Danke für die Rückmeldung.','Können Sie das genauer beschreiben?',
+                   'Ich habe das Problem reproduziert.','Wird an das Fachteam weitergegeben.',
+                   'Ist das jetzt gelöst?','Bitte prüfen Sie die angehängten Logs.',
+                   'Ich kümmere mich morgen darum.','Vielen Dank für Ihre Geduld.'])[1 + floor(seed_rand(ct.ticket_id * 10 + ct.local_rn, 'comment_body') * 8)::int],
+            ct.created_at
+        FROM comment_tree ct
+        LEFT JOIN comment_tree parent
+            ON parent.ticket_id = ct.ticket_id AND parent.survivor_rn = ct.parent_survivor_rn
+        ORDER BY ct.global_rn;
+        GET DIAGNOSTICS n = ROW_COUNT;
+        inserted := inserted + n;
+    END LOOP;
+END
+$$;
+
+ALTER TABLE comment ADD PRIMARY KEY (id),
+    ADD FOREIGN KEY (ticket_id) REFERENCES ticket (id),
+    ADD FOREIGN KEY (parent_id) REFERENCES comment (id);
 
 ANALYZE agent;
 ANALYZE ticket;
