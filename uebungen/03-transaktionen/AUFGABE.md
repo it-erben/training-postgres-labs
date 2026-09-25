@@ -1,4 +1,4 @@
-# Übung 3: Transaktionen, 40 Minuten
+# Übung 3: Transaktionen
 
 ## Worum es geht
 

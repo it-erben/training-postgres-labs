@@ -1,4 +1,4 @@
-# Übung 0: Einrichtung, 15 Minuten
+# Übung 0: Einrichtung
 
 ## Worum es geht
 

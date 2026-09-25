@@ -1,4 +1,4 @@
-# Übung 6: Betrieb, 30 Minuten
+# Übung 6: Betrieb
 
 ## Worum es geht
 

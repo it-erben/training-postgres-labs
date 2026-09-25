@@ -1,4 +1,4 @@
-# Übung 1: Verbindungen und Anweisungen, 35 Minuten
+# Übung 1: Verbindungen und Anweisungen
 
 ## Worum es geht
 

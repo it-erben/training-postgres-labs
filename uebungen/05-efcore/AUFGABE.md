@@ -1,4 +1,4 @@
-# Übung 5: EF Core, 40 Minuten
+# Übung 5: EF Core
 
 ## Worum es geht
 

@@ -1,4 +1,4 @@
-# Übung 2: Typen und Schema, 35 Minuten
+# Übung 2: Typen und Schema
 
 ## Worum es geht
 

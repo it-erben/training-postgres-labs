@@ -1,4 +1,4 @@
-# Übung 4: Massendaten, 35 Minuten
+# Übung 4: Massendaten
 
 ## Worum es geht
 

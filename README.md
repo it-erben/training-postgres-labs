@@ -89,7 +89,7 @@ von dort weiter:
 git checkout uebung-01-loesung
 ```
 
-`AUFGABEN.md` enthält die Übersicht mit Zeiten. Jede Übung hat unter
+`AUFGABEN.md` enthält die Übersicht der Übungen. Jede Übung hat unter
 `uebungen/` eine Aufgabe mit demselben Aufbau. Sie nennt, worum es geht und
 was der Startpunkt enthält, und geht dann Schritt für Schritt durch jede
 Datei und Methode. Eine Tabelle nennt zu jedem Test, was er prüft und was
