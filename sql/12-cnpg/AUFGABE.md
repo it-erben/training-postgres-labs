@@ -3,11 +3,11 @@
 ## Ziel
 
 Das Ticketsystem liegt in deinem eigenen CloudNativePG-Cluster mit einer
-Primärinstanz und Replikaten. Du unterscheidest beide mit SQL. Du prüfst,
-ob deine Verbindung verschlüsselt ist, und beobachtest, wann eine Zeile vom
-RW-Server auf dem RO-Server ankommt. Danach liest du den Status deines
-Clusters und begründest für drei Anwendungsfälle, welchen Dienst die
-Anwendung verwenden soll.
+Primärinstanz und Replikaten. Beide unterscheidest du mit SQL. Dann
+prüfst du, ob deine Verbindung verschlüsselt ist, und beobachtest, wann eine
+Zeile vom RW-Server auf dem RO-Server ankommt. Zum Schluss liest du den
+Status deines Clusters und begründest für drei Anwendungsfälle, welchen
+Dienst die Anwendung verwenden soll.
 
 ## Ausgangsstand
 
@@ -126,7 +126,7 @@ CloudNativePG):
 (1 row)
 ```
 
-`replikat` `f` bedeutet: Die Abfrage lief auf dem RW-Server. Meldet der
+Steht in `replikat` ein `f`, lief die Abfrage auf dem RW-Server. Meldet der
 RO-Server `42P01` (`relation "tickets.lesetest" does not exist`), fehlt
 Aufgabe 3 auf dem RW-Server.
 
@@ -152,8 +152,8 @@ lag er weniger als eine Millisekunde nach `geschrieben_um`. Der Abstand
 `now() - pg_last_xact_replay_timestamp()` wächst weiter, wenn niemand
 schreibt. Er misst dann nur die Zeit seit dem letzten Commit.
 
-Dass die Zeile auf dem RO-Server sofort zu sehen war, beweist keine
-Garantie. CloudNativePG repliziert ohne weitere Konfiguration asynchron:
+Dass die Zeile auf dem RO-Server sofort zu sehen war, garantiert nichts.
+CloudNativePG repliziert ohne weitere Konfiguration asynchron:
 Der `COMMIT` auf der Primärinstanz wartet nicht auf das Replikat. Unter
 Last kann eine gerade geschriebene Zeile auf `-ro` für kurze Zeit fehlen.
 Ob dein Cluster synchron repliziert, zeigt `SHOW synchronous_standby_names`
@@ -161,8 +161,8 @@ auf dem RW-Server. Ein leerer Wert bedeutet asynchron.
 
 Auch mit synchroner Replikation kann eine Zeile auf `-ro` kurz fehlen.
 Mit `synchronous_commit = on` wartet der `COMMIT` nur, bis das Replikat das
-WAL dauerhaft gespeichert hat. Eingespielt und für Abfragen sichtbar ist
-die Zeile dann möglicherweise noch nicht. Darauf wartet erst
+WAL dauerhaft gespeichert hat. Eingespielt und für Abfragen sichtbar muss
+die Zeile dann noch nicht sein. Darauf wartet erst
 `synchronous_commit = remote_apply`.
 
 `<cluster>-r` verteilt Verbindungen auf alle Instanzen einschließlich der

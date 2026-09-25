@@ -74,10 +74,10 @@ Verbindungszeichenfolge:
 | `MaxAutoPrepare`       | `Max Auto Prepare`        | `20`                 | Höchstzahl automatisch vorbereiteter Anweisungen je Verbindung             |
 | `AutoPrepareMinUsages` | `Auto Prepare Min Usages` | `2`                  | Ab der zweiten Ausführung wird vorbereitet                                 |
 
-Nach diesem Schritt kompilieren die Tests weiterhin und die beiden
-Katalog-Tests scheitern mit `NotImplementedException` aus dem Katalog; die
-Pool- und Prepared-Tests werden bereits grün, weil sie nur die DataSource
-prüfen.
+Nach diesem Schritt kompilieren die Tests weiterhin. Die beiden
+Katalog-Tests scheitern mit `NotImplementedException` aus dem Katalog. Die
+Pool- und Prepared-Tests werden dagegen schon grün, weil sie nur die
+DataSource prüfen.
 
 ### 2. Suche nach Kategorie
 
@@ -107,8 +107,8 @@ Die Ergebnisliste ist nach Name sortiert; der Test erwartet
 
 Gleiche Datei, `FindByNameAsync(string searchTerm)`. Gesucht wird
 ohne Rücksicht auf Groß- und Kleinschreibung nach einem Teil des Namens.
-Der Suchbegriff bleibt ein Parameter; die Prozentzeichen des Musters
-gehören in den SQL-Text, nicht in den Wert:
+Der Suchbegriff bleibt ein Parameter. Die Prozentzeichen des Musters setzt
+der SQL-Text um den Parameter, der Wert selbst bleibt ohne `%`:
 
 ```sql
 WHERE name ILIKE '%' || $1 || '%'
@@ -138,7 +138,7 @@ Transaktion; genau das prüft der Test
 | `Pool_holds_at_most_four_server_connections`   | Öffnet vier Verbindungen aus deiner DataSource, zählt sie am Server, fordert eine fünfte an  | `MaxPoolSize` fehlt (Standard 100), `Timeout` zu groß (Standard 15 s)       |
 | `DataSource_auto_prepares_repeated_statements` | Führt dieselbe Anweisung dreimal auf einer Verbindung aus und liest `pg_prepared_statements` | `MaxAutoPrepare` ist 0 (Standard); Auto-Prepare ist in Npgsql ausgeschaltet |
 
-Die Pool-Tests messen am Server, nicht in .NET. Wer `pg_stat_activity` in
+Die Pool-Tests zählen die Verbindungen am Server. Wer `pg_stat_activity` in
 pgAdmin parallel offen hat, sieht die vier Verbindungen mit dem Namen
 `rental` und den Test selbst als `rental_test`.
 

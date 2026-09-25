@@ -2,7 +2,7 @@
 -- des RW-Servers und lässt sich wiederholen: Er entfernt zu Beginn
 -- tickets.lesetest und legt die Tabelle neu an. Anweisungen für den
 -- RO-Server stehen als Kommentarblock, markiert mit -- RO-Server, weil eine
--- Skriptausführung nur eine Verbindung besitzt. Aufgabe 4 und 5 sind
+-- Skriptausführung nur eine Verbindung hat. Aufgabe 4 und 5 sind
 -- Beobachtung und Begründung; ihre Lösung steht als Kommentar am Ende.
 DROP TABLE IF EXISTS tickets.lesetest;
 
@@ -68,8 +68,9 @@ FROM tickets.lesetest;
 -- Eigenen Kommentar anzeigen:   <cluster>-rw. Nach dem Schreiben muss der
 --                               Leser den eigenen Stand sehen; ein Replikat
 --                               kann ihn noch nicht eingespielt haben.
--- Monatsbericht:                <cluster>-ro. Ein Stand von einigen Sekunden
---                               stört nicht, die Primärinstanz wird entlastet.
+-- Monatsbericht:                <cluster>-ro. Ein paar Sekunden Rückstand
+--                               stören hier nicht, und die Primärinstanz hat
+--                               weniger zu tun.
 -- <cluster>-r verteilt auf alle Instanzen einschließlich der Primärinstanz;
 -- welchen Stand eine Abfrage sieht, hängt von der je Verbindung gewählten
 -- Instanz ab. Für keinen der drei Fälle ist das die passende Wahl.

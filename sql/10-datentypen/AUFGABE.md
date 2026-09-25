@@ -3,9 +3,9 @@
 ## Ziel
 
 Du überführst sechs Tickets aus einer Altbestandstabelle mit
-Oracle-typischen Spaltentypen in eine Tabelle mit PostgreSQL-Typen:
-`boolean` statt Zahlenflag, `timestamptz` statt UTC-Wandzeit,
-`numeric` statt Gleitkommazahl und eine Identity-Spalte als Schlüssel.
+Oracle-typischen Spaltentypen in eine Tabelle mit PostgreSQL-Typen. Aus
+dem Zahlenflag wird `boolean`, aus der UTC-Wandzeit `timestamptz` und aus
+der Gleitkommazahl `numeric`; den Schlüssel liefert eine Identity-Spalte.
 Danach zeigst du, warum ein bloßer Cast von `timestamp` nach
 `timestamptz` von der Sitzungszeitzone abhängt.
 
@@ -125,21 +125,21 @@ Aufgabe 3 liefert unter `UTC` für jede Zeile die Abweichung `00:00:00`;
 
 ## Hinweise
 
-`AT TIME ZONE 'UTC'` auf einen `timestamp` nennt die Zone ausdrücklich, in
+`AT TIME ZONE 'UTC'` auf einen `timestamp` nennt ausdrücklich die Zone, in
 der die Wandzeit gilt. Das Ergebnis ist derselbe Zeitpunkt, egal unter
 welcher Sitzungszeitzone das `INSERT` läuft. Ein bloßer Cast nimmt dagegen
-die Sitzungszeitzone. Unter `Europe/Berlin` läge jedes Ticket eine oder zwei
-Stunden zu früh, je nachdem, ob zum jeweiligen Zeitpunkt Winter- oder
-Sommerzeit galt.
+die Sitzungszeitzone. Unter `Europe/Berlin` läge jedes Ticket eine
+oder zwei Stunden zu früh, je nachdem, ob zum jeweiligen Zeitpunkt Winter-
+oder Sommerzeit galt.
 
-Ticket 104 zeigt eine Besonderheit: 02:30 Uhr gibt es am 30.03.2025 in
-Berlin nicht. PostgreSQL deutet die Wandzeit mit dem Offset vor der
+Ticket 104 fällt aus der Reihe. 02:30 Uhr gibt es am 30.03.2025 in
+Berlin gar nicht. PostgreSQL deutet die Wandzeit mit dem Offset vor der
 Umstellung und zeigt sie als 03:30:00+02 an. Die Abweichung beträgt deshalb
 eine Stunde, obwohl der Zeitpunkt schon in der Sommerzeit liegt.
 
-`double precision` speichert binär, Werte wie 0.1 oder 0.2 sind dort nicht
-exakt darstellbar. Die Summe der sechs Beträge weicht deshalb in der
-letzten Stelle ab. `numeric(12,2)` rechnet dezimal und liefert 1275.19.
+`double precision` speichert binär. Werte wie 0.1 oder 0.2 lassen sich
+darin nicht exakt ablegen, deshalb weicht die Summe der sechs Beträge in
+der letzten Stelle ab. `numeric(12,2)` rechnet dezimal und liefert 1275.19.
 
 Nach `DROP TABLE` und erneutem Anlegen beginnt die Identity wieder bei 1.
 `information_schema.columns` zeigt für `ticket_neu.id` den Wert

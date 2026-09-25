@@ -1,8 +1,8 @@
 -- Musterlösung zu SQL-Übung 2. Läuft vollständig im Query Tool und lässt
 -- sich wiederholen: CREATE INDEX IF NOT EXISTS überspringt vorhandene Indizes.
--- created_at ist timestamptz; SET TimeZone = 'UTC' macht die in den Plänen
+-- created_at ist timestamptz. SET TimeZone = 'UTC' macht die in den Plänen
 -- gezeigten Literale unabhängig von der Sitzungszeitzone. RESET TimeZone am
--- Ende gibt die Sitzungseinstellung wieder frei.
+-- Ende setzt die Zeitzone der Sitzung auf ihren Standardwert zurück.
 SET search_path = tickets;
 SET TimeZone = 'UTC';
 

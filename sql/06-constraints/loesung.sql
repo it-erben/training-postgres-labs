@@ -10,12 +10,12 @@ DROP INDEX IF EXISTS comment_parent_idx;
 
 -- Aufgabe 1: CHECK zuerst NOT VALID anlegen (eigene, sofort bestätigte
 -- Anweisung), danach VALIDATE CONSTRAINT in einer offenen Transaktion
--- beobachten. Zwei Verbindungen zeigen, dass VALIDATE CONSTRAINT nur
--- SHARE UPDATE EXCLUSIVE hält (Ergebnis siehe AUFGABE.md:
--- ShareUpdateExclusiveLock, granted = t, UPDATE 1 in B läuft trotz
--- offener Transaktion in A durch). Liefe ADD CONSTRAINT in derselben
--- Transaktion wie VALIDATE CONSTRAINT, bliebe dessen ACCESS EXCLUSIVE bis
--- zum COMMIT bestehen und würde das UPDATE in B blockieren.
+-- beobachten. Mit zwei Verbindungen wird sichtbar, dass VALIDATE
+-- CONSTRAINT nur SHARE UPDATE EXCLUSIVE hält. Ergebnis siehe AUFGABE.md:
+-- ShareUpdateExclusiveLock, granted = t, und UPDATE 1 in B läuft trotz
+-- offener Transaktion in A durch. Liefe ADD CONSTRAINT in derselben
+-- Transaktion wie VALIDATE CONSTRAINT, bliebe seine ACCESS EXCLUSIVE-Sperre
+-- bis zum COMMIT bestehen und würde das UPDATE in B blockieren.
 ALTER TABLE ticket
     ADD CONSTRAINT ticket_priority_check CHECK (priority BETWEEN 1 AND 4) NOT VALID;
 --

@@ -134,14 +134,14 @@ Der Plan nennt nur `ticket_2025q1`:
 `unique constraint on partitioned table must include all partitioning columns`.
 PostgreSQL prüft Eindeutigkeit nur innerhalb einer Partition, deshalb muss
 `created_at` im Schlüssel stehen. Eindeutig ist damit das Paar
-`(id, created_at)`; dieselbe `id` dürfte in zwei Quartalen vorkommen.
+`(id, created_at)`. Dieselbe `id` dürfte in zwei Quartalen vorkommen.
 
 In Aufgabe 4 nennt der erste Plan eine Partition, der zweite alle zehn. Die
 Partitionsauswahl vergleicht Bedingungen direkt mit den Grenzen. Ein
 Ausdruck wie `date_trunc(...)` um die Spalte verhindert sie, obwohl beide
 Abfragen 98588 Tickets zählen. Welcher Zugriff innerhalb der Partition
 erscheint, etwa `Seq Scan` oder `Index Only Scan`, hängt vom Zustand der
-Tabelle ab; entscheidend ist die Zahl der genannten Partitionen.
+Tabelle ab. Es kommt auf die Zahl der Partitionen an, die der Plan nennt.
 
 In Aufgabe 5 zählt die abgetrennte Tabelle 45093 Zeilen. Mit dem passenden
 `CHECK` muss `ATTACH` die Zeilen nicht erneut prüfen. Das lässt sich

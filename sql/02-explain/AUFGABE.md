@@ -35,8 +35,8 @@ eines Zeitfensters von sieben Tagen.
    WHERE created_at >= '2026-01-01' AND created_at < '2026-01-08';
    ```
 
-   `created_at` ist `timestamptz`; ein Datumsliteral ohne Zonenangabe wird
-   anhand der Sitzungszeitzone ausgewertet. `SET TimeZone = 'UTC';` macht
+   `created_at` ist `timestamptz`. Ein Datumsliteral ohne Zonenangabe wertet
+   PostgreSQL in der Sitzungszeitzone aus. `SET TimeZone = 'UTC';` macht
    die im Plan gezeigten Literale unabhängig davon, welche Zeitzone die
    Sitzung sonst verwendet.
 
@@ -57,8 +57,8 @@ eines Zeitfensters von sieben Tagen.
    ```
 
    Alle drei Zugriffe lesen die Tabelle vollständig. Die Schätzungen liegen
-   nahe an den tatsächlichen Zeilen; ein Sequential Scan ist bei diesen
-   Ergebnisanteilen zulässig.
+   nahe an den tatsächlichen Zeilen. Bei diesen Ergebnisanteilen ist ein
+   Sequential Scan zulässig.
 
 2. Lege für jeden Zugriff einen Index an:
 
@@ -105,8 +105,8 @@ eines Zeitfensters von sieben Tagen.
    ```
 
    Der Plan bleibt ein `Parallel Seq Scan on comment`, wie schon beim
-   Sieben-Tage-Fenster. Ein breiteres Fenster ändert hier nichts, weil schon
-   das enge Fenster keinen Nutzen aus `comment_created_brin` zieht.
+   Sieben-Tage-Fenster. Ein breiteres Fenster ändert hier nichts, weil
+   `comment_created_brin` schon beim engen Fenster nichts bringt.
 
 ## Ergebnis prüfen
 
@@ -173,21 +173,19 @@ Zusätzlich zur Tabellengröße gemessen:
 ```
 
 `comment_created_brin` erscheint in diesem Ergebnis nicht im dritten Plan,
-obwohl der Index angelegt ist: Der Planer hält den `Parallel Seq Scan`
-weiterhin für günstiger. Das ist gegenüber der ursprünglichen Erwartung
-dieser Übung eine Abweichung; der Abschnitt "Hinweise" erklärt sie.
+obwohl der Index angelegt ist. Der Planer hält den `Parallel Seq Scan`
+weiterhin für günstiger. Warum, erklärt der Abschnitt "Hinweise".
 
 ## Hinweise
 
 `ticket_offen_idx` und `ticket_metadata_gin` verkleinern die betroffenen
-Zugriffe deutlich: Ein `Bitmap Index Scan` liest nur die passenden
-Einträge, statt die gesamte Tabelle zu filtern.
+Zugriffe deutlich. Ein `Bitmap Index Scan` liest nur die passenden
+Einträge. Vorher las ein Seq Scan die gesamte Tabelle.
 
-`comment_created_brin` verhält sich anders als die anderen beiden Indizes.
-Ein BRIN-Index summiert je Block-Bereich nur Minimum und Maximum der
-indizierten Spalte. Er hilft nur, wenn benachbarte Zeilen auch ähnliche
-Werte tragen, also wenn die physische Reihenfolge der Tabelle mit der
-Spalte korreliert:
+Bei `comment_created_brin` sieht es anders aus. Ein BRIN-Index hält je
+Block-Bereich nur Minimum und Maximum der indizierten Spalte fest. Er hilft
+nur, wenn benachbarte Zeilen auch ähnliche Werte tragen, also wenn die
+physische Reihenfolge der Tabelle mit der Spalte korreliert:
 
 ```sql
 SELECT attname, correlation FROM pg_stats
@@ -195,30 +193,29 @@ WHERE schemaname = 'tickets' AND tablename = 'comment' AND attname = 'created_at
 ```
 
 Der Wert liegt im Testlauf nahe 0 (mehrfach zwischen -0.01 und 0.01), also
-praktisch unkorreliert. Der Grund liegt in `setup.sql`: Ein Kommentar
-erscheint physisch in der Reihenfolge seines Tickets, sein `created_at`
-aber richtet sich nach dem `created_at` des Tickets, das unabhängig von der
-`id` über 730 Tage verteilt zufällig gewählt wird. Physisch benachbarte
-Kommentare haben deshalb keine benachbarten Zeitstempel.
+praktisch unkorreliert. Der Grund liegt in `setup.sql`. Ein Kommentar
+erscheint physisch in der Reihenfolge seines Tickets. Sein `created_at`
+richtet sich aber nach dem `created_at` des Tickets, und das wählt
+`setup.sql` unabhängig von der `id` zufällig aus 730 Tagen. Physisch
+benachbarte Kommentare haben deshalb keine benachbarten Zeitstempel.
 
 Mit `EXPLAIN (ANALYZE, BUFFERS)` und erzwungenem `enable_seqscan = off`
 lässt sich das direkt zeigen: Der `Bitmap Index Scan` auf
 `comment_created_brin` liefert zwar nur wenige Indexseiten, aber die
 `Bitmap Heap Scan`-Zeile zeigt danach `Heap Blocks: lossy` in Höhe der
 gesamten Tabelle, `relpages` von `comment` eingeschlossen. Der Index kann
-also keinen einzigen Block ausschließen; er liest de facto dieselbe Menge
+also keinen einzigen Block ausschließen. Er liest de facto dieselbe Menge
 Daten wie ein `Seq Scan`, nur mit zusätzlichem Rechecken. In seltenen
-Läufen, in denen die zufällige `ANALYZE`-Stichprobe eine minimal andere
-Schätzung liefert, wählt der Planer stattdessen genau diesen
-`Bitmap Heap Scan` über `comment_created_brin`. Beide Pläne lesen dieselbe
-Datenmenge; welcher davon erscheint, ist für das Ergebnis der Übung ohne
-Bedeutung.
+Läufen liefert die zufällige `ANALYZE`-Stichprobe eine minimal andere
+Schätzung, und der Planer wählt genau diesen `Bitmap Heap Scan` über
+`comment_created_brin`. Beide Pläne lesen dieselbe Datenmenge. Für das
+Ergebnis der Übung ist egal, welcher erscheint.
 
-`comment_created_brin` bleibt trotzdem mit 24 kB der mit Abstand kleinste
-der drei neuen Indizes, gegenüber 43 MB für `comment_pkey`. Ein BRIN-Index
-lohnt sich für Spalten, die tatsächlich mit der Einfügereihenfolge
-korrelieren, etwa eine echte Ereigniszeit in einer append-only Tabelle,
-nicht für ein zufällig verteiltes Datum wie hier.
+`comment_created_brin` bleibt mit 24 kB trotzdem der mit Abstand kleinste
+der drei neuen Indizes, `comment_pkey` belegt 43 MB. Ein BRIN-Index lohnt
+sich für Spalten, die tatsächlich mit der Einfügereihenfolge korrelieren,
+etwa eine echte Ereigniszeit in einer append-only Tabelle. Das zufällig
+verteilte Datum hier gehört nicht dazu.
 
 `loesung.sql` verwendet `CREATE INDEX IF NOT EXISTS` und lässt sich deshalb
 mehrfach ausführen, ohne vorhandene Indizes erneut anzulegen.

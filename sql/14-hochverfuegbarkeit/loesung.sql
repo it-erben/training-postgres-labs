@@ -3,7 +3,7 @@
 -- tickets.auftrag und legt die Tabelle neu an. Aufgabe 4 braucht zwei
 -- Verbindungen und einen Switchover; die Schritte stehen als Kommentar,
 -- jeweils mit Server und Query Tool, weil eine Skriptausführung nur eine
--- Verbindung besitzt.
+-- Verbindung hat.
 -- Aufgabe 5 ist eine Entscheidung; die Lösung steht als Kommentar.
 DROP TABLE IF EXISTS tickets.auftrag;
 
@@ -67,8 +67,8 @@ JOIN (VALUES ('daf79a48-a152-47d4-9d92-3cca9782adf0'::uuid,
               '{"agent_id": 12}'::jsonb))
      AS gesendet (operation_id, nutzlast)
   ON gesendet.operation_id = a.operation_id;
--- Ergebnis: gleiche_nutzlast f. Das ist ein Programmfehler: Dieselbe ID
--- steht für zwei verschiedene Aufträge. Die Anwendung meldet ihn und
+-- Ergebnis: gleiche_nutzlast f. Das ist ein Programmfehler, weil dieselbe
+-- ID für zwei verschiedene Aufträge steht. Die Anwendung meldet ihn und
 -- wiederholt nicht. Gespeichert bleibt die Nutzlast des ersten Versuchs.
 
 -- Aufgabe 4: eigene Verbindung bei einem Switchover beobachten

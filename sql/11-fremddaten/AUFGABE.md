@@ -3,7 +3,7 @@
 ## Ziel
 
 Du richtest mit `postgres_fdw` einen Zugriff auf die eigene Datenbank ein,
-als läge sie auf einem anderen Server. Du prüfst vorher, welche
+als läge sie auf einem anderen Server. Vorher prüfst du, welche
 Erweiterungen dein Cluster anbietet. Danach liest du im Ausführungsplan,
 welcher Teil einer Abfrage auf der Gegenseite läuft und welcher lokal.
 
@@ -134,15 +134,16 @@ falscher Host oder ein falsches Passwort zeigt sich erst beim Import mit
 `DETAIL` nennt die Ursache, etwa
 `password authentication failed for user "app"`. Fehlt das Passwort im
 User Mapping, meldet `postgres_fdw` `2F003`
-`password or GSSAPI delegated credentials required`: Eine Rolle ohne
-Superuser muss sich an der Gegenseite mit Passwort anmelden.
+`password or GSSAPI delegated credentials required`, weil sich eine Rolle
+ohne Superuser an der Gegenseite mit Passwort anmelden muss.
 
 Fehlt das `GRANT USAGE`, scheitert schon `CREATE SERVER` mit `42501` und
 `permission denied for foreign-data wrapper postgres_fdw`.
 
 `sslmode 'verify-full'` prüft das Zertifikat der Gegenseite und ihren
-Namen. Die Verbindung baut der Datenbankserver auf, nicht pgAdmin. Das
-Wurzelzertifikat muss deshalb auf dem Datenbankserver liegen. Ohne weitere
+Namen. Die Verbindung baut der Datenbankserver auf, pgAdmin ist daran
+nicht beteiligt. Das Wurzelzertifikat muss deshalb auf dem Datenbankserver
+liegen. Ohne weitere
 Angabe sucht libpq es unter `~/.postgresql/root.crt` im Heimatverzeichnis
 des Betriebssystembenutzers, unter dem der Server läuft. Liegt die CA an
 einem anderen Pfad im Datenbank-Pod, nennt ihn die Serveroption
@@ -152,9 +153,9 @@ einem anderen Pfad im Datenbank-Pod, nennt ihn die Serveroption
 ALTER SERVER kurs_loopback OPTIONS (ADD sslrootcert '<ca-pfad>');
 ```
 
-Fehlt die Datei, scheitert der erste Zugriff über `fern`. Referenzlauf
-lokal mit einem Server `tls_probe` gegen eine Gegenseite mit TLS, ohne
-CA-Datei auf dem Datenbankserver:
+Fehlt die Datei, scheitert der erste Zugriff über `fern`. Im lokalen
+Referenzlauf lief ein Server `tls_probe` gegen eine Gegenseite mit TLS,
+auf dem Datenbankserver lag keine CA-Datei:
 
 ```text
 ERROR:  08001: could not connect to server "tls_probe"

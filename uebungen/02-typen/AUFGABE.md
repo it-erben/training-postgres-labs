@@ -13,11 +13,11 @@ Regel durchsetzen, die im Anwendungscode schwer ist: Ein
 `EXCLUDE`-Constraint verhindert, dass zwei Buchungen desselben Geräts sich
 zeitlich überlappen, auch wenn zwei Anwendungen gleichzeitig schreiben.
 Daneben sind Zeitstempel die häufigste stille Fehlerquelle zwischen .NET
-und PostgreSQL. Ein `DateTime` mit `Kind = Local` wird von Npgsql ohne
-explizite Typangabe als `timestamp` ohne Zeitzone gesendet, und der Server
-deutet den Wert dann in seiner Sitzungszeitzone um. Es gibt keinen Fehler,
-nur eine Verschiebung um Stunden. Die Übung verlangt, dass so ein Wert
-abgewiesen wird.
+und PostgreSQL. Ein `DateTime` mit `Kind = Local` sendet Npgsql ohne
+explizite Typangabe als `timestamp` ohne Zeitzone, und der Server deutet
+den Wert dann in seiner Sitzungszeitzone um. Das geht ohne Fehlermeldung
+durch und verschiebt den Zeitpunkt um Stunden. Die Übung verlangt, dass so
+ein Wert abgewiesen wird.
 
 ## Was du vorfindest
 
@@ -83,7 +83,7 @@ CREATE TABLE rental.booking (
 ```
 
 Die Tests lesen die Spalten unter genau diesen Namen. Ein Index auf
-`customer_id` hilft Übung 3, ist hier aber nicht Gegenstand eines Tests.
+`customer_id` hilft Übung 3; in dieser Übung prüft ihn kein Test.
 
 Den Ausschluss-Constraint gegen Überlappung je Gerät. `EXCLUDE` prüft für
 je zwei Zeilen eine Kombination von Operatoren; wenn alle zutreffen, wird

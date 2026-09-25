@@ -1,5 +1,5 @@
 -- Musterlösung zu SQL-Übung 4. Der ausführbare Teil setzt Ticket 1 und 2
--- zurück und legt tickets.zuweisung_log neu an; er lässt sich deshalb
+-- zurück und legt tickets.zuweisung_log neu an. Er lässt sich deshalb
 -- mehrfach ausführen. Die eigentlichen Aufgaben brauchen zwei bis drei
 -- gleichzeitige Verbindungen und stehen deshalb als Kommentar, markiert
 -- mit -- Verbindung A, -- Verbindung B und -- Verbindung C.
@@ -37,7 +37,7 @@ CREATE TABLE tickets.zuweisung_log (
 -- VALUES (1, 2, 'B');
 -- COMMIT;
 -- -- Beide UPDATE-Anweisungen laufen ohne Fehler durch. Ticket 1 zeigt am
--- -- Ende nur die Zuweisung von B; die Zuweisung von A ist verloren.
+-- -- Ende nur die Zuweisung von B. Die Zuweisung von A ist verloren.
 
 -- Aufgabe 2: dieselbe Situation mit SELECT ... FOR UPDATE.
 -- UPDATE tickets.ticket SET agent_id = NULL WHERE id = 1;
@@ -56,7 +56,7 @@ CREATE TABLE tickets.zuweisung_log (
 -- VALUES (1, 1, 'A');
 -- COMMIT;
 --
--- Verbindung B (erhält jetzt agent_id = 1, nicht mehr NULL):
+-- Verbindung B (erhält jetzt agent_id = 1 aus der Zuweisung von A):
 -- ROLLBACK;
 -- -- B sieht die bereits erfolgte Zuweisung und weist selbst nicht mehr zu.
 
@@ -117,8 +117,9 @@ CREATE TABLE tickets.zuweisung_log (
 -- JOIN pg_stat_activity a ON a.pid = l.pid
 -- WHERE a.application_name IN ('uebung_a', 'uebung_b')
 -- ORDER BY a.application_name, l.mode;
--- -- B wartet mit wait_event_type=Lock, wait_event=transactionid; die PID
--- -- von A erscheint als Blockierer und als ungewährte Zeile in pg_locks.
+-- -- B wartet mit wait_event_type=Lock, wait_event=transactionid. Die PID
+-- -- von A erscheint als Blockierer. In pg_locks steht für B eine nicht
+-- -- gewährte Sperre auf die Transaktions-ID von A.
 --
 -- Danach wie in Aufgabe 4 in A COMMIT und in B ROLLBACK ausführen.
 
@@ -139,7 +140,7 @@ CREATE TABLE tickets.zuweisung_log (
 -- Verbindung B (fordert die von A gehaltene Zeile an, schließt den Zyklus):
 -- SELECT id FROM tickets.ticket WHERE id = 1 FOR UPDATE;
 -- -- Eine der beiden Sitzungen erhält SQLSTATE 40P01 (deadlock detected)
--- -- und muss ROLLBACK ausführen; die andere kann fortfahren und abschließen.
+-- -- und muss ROLLBACK ausführen. Die andere kann fortfahren und abschließen.
 
 -- Kontrolle nach den Aufgaben 1 bis 4 in der beschriebenen Reihenfolge
 -- (Ergebnis siehe AUFGABE.md):

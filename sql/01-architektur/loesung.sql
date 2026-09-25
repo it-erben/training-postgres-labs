@@ -1,9 +1,9 @@
 -- Musterlösung zu SQL-Übung 1. Im Query Tool abschnittsweise ausführen:
 -- jeden mit "-- Abschnitt" beginnenden Block einzeln markieren und mit F5
--- ausführen. Eine gemeinsame Ausführung scheitert an VACUUM (25001) und
--- liest die Zähler aus Aufgabe 4 und die WAL-Position aus Aufgabe 5 zu
--- früh. Abschnitt 1 entfernt tickets.messung; die Datei lässt sich deshalb
--- wiederholen.
+-- ausführen. Am Stück ausgeführt scheitert die Datei an VACUUM (25001),
+-- außerdem liest sie die Zähler aus Aufgabe 4 und die WAL-Position aus
+-- Aufgabe 5 zu früh. Ein zweiter Lauf ist möglich, denn Abschnitt 1 löscht
+-- tickets.messung und legt die Tabelle neu an.
 
 -- Abschnitt 1: Rücksetzen
 DROP TABLE IF EXISTS tickets.messung;
@@ -13,8 +13,8 @@ CREATE TABLE tickets.messung (
 );
 
 -- Abschnitt 2 (Aufgabe 1): Eigene Sitzung und eine zweite Verbindung in
--- pg_stat_activity finden. Eine zweite Verbindung mit eigenem
--- application_name gehört dazu; dieses Skript zeigt nur die eigene Zeile.
+-- pg_stat_activity finden. Zur Aufgabe gehört eine zweite Verbindung mit
+-- eigenem application_name. Dieses Skript allein zeigt nur die eigene Zeile.
 SELECT application_name, backend_type, state
 FROM pg_stat_activity
 WHERE datname = current_database()
@@ -36,7 +36,7 @@ WHERE t.id = 1;
 DROP TABLE _vorher;
 
 -- Aufgabe 3: Zwei Verbindungen, eine offene Transaktion. Eine einzelne
--- Skriptausführung hat keine zweite Verbindung; die Schritte stehen deshalb
+-- Skriptausführung hat keine zweite Verbindung, deshalb stehen die Schritte
 -- als Kommentar.
 --
 -- Verbindung A:
@@ -46,7 +46,7 @@ DROP TABLE _vorher;
 --
 -- Verbindung B (während A offen ist):
 -- SELECT id, subject FROM tickets.ticket WHERE id = 1;
--- -- Liefert den alten Wert, der Snapshot von B sieht die offene Änderung von A nicht.
+-- -- Liefert den alten Wert. Der Snapshot von B sieht die offene Änderung von A nicht.
 --
 -- Verbindung A:
 -- COMMIT;
@@ -57,8 +57,8 @@ DROP TABLE _vorher;
 
 -- Abschnitt 4 (Aufgabe 4): 10000 Tickets aktualisieren. autovacuum_enabled
 -- aus, damit kein automatischer Lauf dazwischenfunkt. Die Sitzung
--- veröffentlicht ihre Zähler nach dem Ende dieser Transaktion; erst
--- Abschnitt 5 liest sie.
+-- veröffentlicht ihre Zähler nach dem Ende dieser Transaktion. Lesen kann
+-- sie deshalb erst der nächste Abschnitt.
 ALTER TABLE tickets.ticket SET (autovacuum_enabled = false);
 UPDATE tickets.ticket SET priority = priority WHERE id <= 10000;
 SELECT pg_stat_force_next_flush();
@@ -80,8 +80,8 @@ FROM pg_stat_user_tables WHERE schemaname = 'tickets' AND relname = 'ticket';
 ALTER TABLE tickets.ticket RESET (autovacuum_enabled);
 
 -- Abschnitt 8 (Aufgabe 5): WAL-Position vor dem UPDATE merken.
--- pg_current_wal_lsn() liefert die geschriebene WAL-Position; das UPDATE
--- ist darin erst nach dem COMMIT am Ende dieses Abschnitts enthalten.
+-- pg_current_wal_lsn() liefert die geschriebene WAL-Position. Das UPDATE
+-- steckt darin erst nach dem COMMIT am Ende dieses Abschnitts.
 CREATE TEMP TABLE _wal_start AS SELECT pg_current_wal_lsn() AS lsn;
 UPDATE tickets.ticket SET priority = priority WHERE id = 1;
 

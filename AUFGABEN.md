@@ -14,8 +14,8 @@ wächst. Die Zeiten sind Planung; Bonus-Aufgaben sind optional.
 | 6     | 200-230 | [Betrieb](uebungen/06-betrieb/AUFGABE.md)              | `uebung-06-start`  | `uebung-06-loesung` |
 | 7     | 230-240 | Abschluss: Was die Tests nicht prüfen                  |                    |                     |
 
-Jede Aufgabe nennt ihre Anforderungen als Testnamen. Ein Test, der grün ist,
-gilt als erfüllt. Tests mit dem Trait `Stretch=true` sind Bonus.
+Jede Aufgabe nennt ihre Anforderungen als Testnamen. Ist der Test grün, ist
+die Anforderung erfüllt. Tests mit dem Trait `Stretch=true` sind Bonus.
 
 ```sh
 dotnet test --filter-trait Exercise=03

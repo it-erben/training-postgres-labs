@@ -46,7 +46,7 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    ```
 
    Der innere `JOIN` verbindet nur zugeordnete Tickets mit ihrem Agenten und
-   damit ihrem Team; ein Ticket ohne `agent_id` fließt nicht ein.
+   damit ihrem Team. Ein Ticket ohne `agent_id` fließt nicht ein.
    `date_trunc('month', ...)` rundet den Zeitpunkt auf den Monatsanfang. Die
    Fensterfunktion `sum() OVER (PARTITION BY team ORDER BY monat)` läuft
    ohne eigene Rahmenklausel und summiert deshalb per Voreinstellung von der
@@ -72,8 +72,8 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
 
    Mehrere hundert Tickets je Agent teilen sich denselben letzten
    `closed_at`-Wert, weil `setup.sql` das Kursende als obere Schranke für
-   alle Abschlusszeiten verwendet. `id DESC` als zweites Sortierkriterium
-   macht die Rangfolge bei Zeitgleichheit trotzdem eindeutig.
+   alle Abschlusszeiten verwendet. Mit `id DESC` als zweitem
+   Sortierkriterium ist die Rangfolge auch bei gleicher Zeit eindeutig.
 
 3. Erzeuge `tickets.ergebnis_3(comment_id, parent_id, tiefe, author)`
    rekursiv aus dem Kommentarbaum von Ticket 9. Die Wurzel erhält Tiefe 1:
@@ -115,8 +115,8 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    ```
 
    `ticket_metadata_gin` kann bereits aus [Übung 2](../02-explain/AUFGABE.md)
-   vorhanden sein; `CREATE INDEX IF NOT EXISTS` legt ihn nur einmal an.
-   `@?` prüft, ob der JSON-Pfad mindestens ein Ergebnis liefert; der Filter
+   vorhanden sein. `CREATE INDEX IF NOT EXISTS` legt ihn nur einmal an.
+   `@?` prüft, ob der JSON-Pfad mindestens ein Ergebnis liefert. Der Filter
    `? (@ == 5)` innerhalb des Pfades trifft nur Tickets mit `csat_score = 5`.
 
 5. Lies mit `CROSS JOIN LATERAL` je Team das jüngste offene Ticket:
@@ -148,11 +148,11 @@ DROP TABLE IF EXISTS tickets.ergebnis_4;
    ```
 
    `team` in der äußeren Ableitung liefert die vier vorhandenen Teams ohne
-   Duplikate. Der `LATERAL`-Teil darf auf die Spalte `team.team` der
-   äußeren Zeile zugreifen, ein gewöhnlicher `JOIN` könnte das nicht: Ohne
-   `LATERAL` müsste die Unterabfrage vor jedem Zugriff auf die äußere
-   Zeile feststehen. `LIMIT 1` je Team ergibt genau eine Ergebniszeile pro
-   Team, nicht das insgesamt jüngste Ticket über alle Teams hinweg.
+   Duplikate. Der `LATERAL`-Teil greift auf die Spalte `team.team` der
+   äußeren Zeile zu. Mit einem gewöhnlichen `JOIN` geht das nicht, weil die
+   Unterabfrage dann vor jedem Zugriff auf die äußere Zeile feststehen
+   müsste. Da `LIMIT 1` für jedes Team einzeln greift, entsteht genau eine
+   Ergebniszeile pro Team.
 
 ## Ergebnis prüfen
 
@@ -196,28 +196,28 @@ Referenzlauf:
 ```
 
 Jedes der vier Teams verteilt sich auf 25 Monate, denn `created_at` deckt
-730 Tage vor dem Kursstichtag ab. `ergebnis_2` enthält 150 Zeilen: 50
-Agenten mit höchstens drei Zeilen, `max(rang) = 3` bestätigt, dass die
-Begrenzung tatsächlich greift. Der Kommentarbaum von Ticket 9 hat eine
-Wurzel, zwei Kommentare auf Tiefe 2 und einen auf Tiefe 3.
+730 Tage vor dem Kursstichtag ab. `ergebnis_2` enthält 150 Zeilen, also 50
+Agenten mit höchstens drei Zeilen. `max(rang) = 3` bestätigt, dass die
+Begrenzung greift. Der Kommentarbaum von Ticket 9 hat eine Wurzel, zwei
+Kommentare auf Tiefe 2 und einen auf Tiefe 3.
 
 ## Hinweise
 
 Die laufende Summe in `ergebnis_1` bezieht sich je Zeile nur auf das eigene
-Team; die Fensterfunktion partitioniert danach. Ein `ORDER BY` ohne
-`PARTITION BY` würde stattdessen über alle Teams hinweg kumulieren.
+Team, weil die Fensterfunktion danach partitioniert. Ein `ORDER BY` ohne
+`PARTITION BY` würde über alle Teams hinweg kumulieren.
 
-`ergebnis_2` filtert vor der Nummerierung nicht auf `rang <= 3`, weil die
-Fensterfunktion in derselben Ebene wie `WHERE status = 'closed'` sonst nicht
-verfügbar wäre. Eine `WHERE`-Bedingung auf ein Fensterfunktionsergebnis
-braucht deshalb immer eine äußere Abfrage oder eine CTE.
+In der inneren Ebene von `ergebnis_2`, neben `WHERE status = 'closed'`,
+gibt es `rang` noch nicht. Deshalb filtert erst die äußere Abfrage auf
+`rang <= 3`. Eine `WHERE`-Bedingung auf ein Fensterfunktionsergebnis
+braucht immer eine äußere Abfrage oder eine CTE.
 
 Eine rekursive CTE ohne Filter auf `ticket_id` innerhalb des rekursiven
 Teils würde bei einer `id`-Kollision zwischen `parent_id`-Werten
 verschiedener Tickets falsche Zweige aufnehmen. In diesem Datenbestand ist
-`comment.id` global eindeutig, die zusätzliche Bedingung bleibt trotzdem
+`comment.id` global eindeutig. Die zusätzliche Bedingung bleibt trotzdem
 die verlässlichere Formulierung.
 
 `loesung.sql` entfernt zu Beginn `tickets.ergebnis_1` bis `ergebnis_4` und
-lässt sich deshalb mehrfach ausführen. `ticket_metadata_gin` wird nicht
-entfernt: Der Index gehört mehreren Übungen und bleibt bestehen.
+lässt sich deshalb mehrfach ausführen. `ticket_metadata_gin` bleibt
+bestehen, weil mehrere Übungen den Index nutzen.

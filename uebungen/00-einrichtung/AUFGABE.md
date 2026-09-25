@@ -7,12 +7,12 @@ gehört. Die Tests bauen darin vor jeder Testklasse das Schema `rental`
 neu auf, legen Tabellen an, verwerfen sie wieder und lesen dabei den
 Zustand des Servers über `pg_stat_activity` und die Systemkataloge. Dafür
 brauchen sie eine Verbindung, die vier Bedingungen erfüllt: eigene
-Datenbank, Eigentümerrolle ohne Superuser, PostgreSQL 17 oder 18, und der
-Zugriff geht auf den Primärserver, nicht auf ein Replikat.
+Datenbank, Eigentümerrolle ohne Superuser, PostgreSQL 17 oder 18 und
+Zugriff auf den Primärserver.
 
 In dieser Übung schreibst du keinen Code. Du setzt eine Umgebungsvariable
 und prüfst mit vier Tests, dass die Umgebung stimmt. Alles Weitere baut
-darauf auf; wenn hier etwas rot ist, wird jede spätere Übung daran scheitern.
+darauf auf. Ist hier ein Test rot, scheitert jede spätere Übung daran.
 
 ## Was du vorfindest
 
@@ -79,8 +79,9 @@ nach ihrem Trait aus; jede Übung hat ihren eigenen Wert.
 | `Access_goes_to_rw_service`       | Prüft `pg_is_in_recovery() = false`                                             | Die Verbindung landet auf einem Replikat; Host auf `-rw` ändern                            |
 
 Eine Meldung wie `RENTAL_CONNECTION ist nicht gesetzt` bedeutet, dass die
-Shell die Variable nicht kennt. `28P01` ist ein falsches Passwort, `3D000`
-eine unbekannte Datenbank, `08001` oder ein Timeout ein falscher Host.
+Shell die Variable nicht kennt. `28P01` steht für ein falsches Passwort,
+`3D000` für eine unbekannte Datenbank, `08001` oder ein Timeout für einen
+falschen Host.
 
 ## Fertig, wenn
 

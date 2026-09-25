@@ -58,19 +58,18 @@ SELECT
 FROM generate_series(1, 50) AS s(i)
 ORDER BY s.i;
 
--- status ist zu ~95 % 'closed', damit der partielle Index in Modul 02 einen
--- sichtbaren Effekt zeigt. ticket_rows berechnet status/created_at einmal
--- und referenziert sie über den Spaltennamen für closed_at weiter. seed_rand
--- liefert bei erneutem Aufruf mit denselben Argumenten ohnehin denselben
--- Wert, ein Alias erspart aber die doppelte, lange CASE-Expression.
+-- status ist zu ~95 % 'closed', damit der partielle Index in Modul 02
+-- sichtbar wirkt. ticket_rows berechnet status und created_at einmal, für
+-- closed_at greift das INSERT über den Spaltennamen darauf zu. seed_rand
+-- liefert mit denselben Argumenten ohnehin denselben Wert, der Alias spart
+-- nur die zweite, lange CASE-Expression.
 --
 -- ticket.metadata: channel ist immer gesetzt (drei Werte). pool.attrs wählt
--- aus den vier Schlüsseln source, csat_score, reopened_count und
--- sla_target_hours per seed_rand zwei aus und fasst sie zu einem Objekt
--- zusammen, sodass jedes Ticket nur zwei der vier weiteren Schlüssel trägt.
--- escalated und vip_customer sind seltene Zusatzschlüssel, die nur unterhalb
--- eines festen seed_rand-Schwellwerts gesetzt werden. Grundlage für die
--- GIN-Übung in Modul 02.
+-- per seed_rand zwei der vier Schlüssel source, csat_score, reopened_count
+-- und sla_target_hours und fasst sie zu einem Objekt zusammen. Jedes Ticket
+-- trägt also nur zwei dieser vier Schlüssel. Selten kommen escalated und
+-- vip_customer dazu, gesetzt nur unterhalb eines festen seed_rand-Schwellwerts
+-- (0.12 bzw. 0.18). Darauf baut die GIN-Übung in Modul 02 auf.
 WITH ticket_rows AS (
     SELECT
         t.id,
@@ -121,26 +120,25 @@ FROM ticket_rows
 ORDER BY id;
 
 -- comment.parent_id bildet echte Baumstrukturen für die rekursive CTE in
--- Modul 05: jeder Kommentar außer dem ersten je Ticket wählt als Elternteil
--- zufällig einen der bereits erzeugten Kommentare desselben Tickets, nicht
--- zwingend die Wurzel.
+-- Modul 05. Jeder Kommentar außer dem ersten je Ticket wählt zufällig einen
+-- der schon erzeugten Kommentare desselben Tickets als Elternteil. Das kann
+-- die Wurzel sein, muss es aber nicht.
 --
--- local_rn läuft über ein konstantes generate_series(1,4); die variable
--- Kommentaranzahl je Ticket (Erwartungswert 2,5) entsteht über den
--- WHERE-Filter (lokale Position 1 immer, 2-4 mit sinkender
--- Wahrscheinlichkeit). Die überlebenden local_rn-Werte je Ticket können
--- Lücken haben (z. B. {1,3,4}, wenn Position 2 verworfen wurde). Daher
--- nummeriert survivor_rn die TATSÄCHLICH erzeugten Kommentare je Ticket
--- lückenlos durch, und der Elternteil wird aus survivor_rn 1..(eigener
--- survivor_rn - 1) gewählt, nicht aus local_rn: eine Auswahl aus local_rn
--- hätte auf eine verworfene Position fallen können, und parent_id wäre
--- NULL geblieben, obwohl der Kommentar nicht der erste des Tickets ist.
+-- local_rn läuft über ein konstantes generate_series(1,4). Wie viele
+-- Kommentare ein Ticket bekommt (Erwartungswert 2,5), entscheidet der
+-- WHERE-Filter: lokale Position 1 immer, 2-4 mit sinkender
+-- Wahrscheinlichkeit. Die übrigen local_rn-Werte je Ticket können deshalb
+-- Lücken haben, z. B. {1,3,4}, wenn Position 2 verworfen wurde. survivor_rn
+-- nummeriert die TATSÄCHLICH erzeugten Kommentare je Ticket lückenlos
+-- durch. Der Elternteil kommt aus survivor_rn 1..(eigener survivor_rn - 1).
+-- Eine Auswahl aus local_rn hätte auf eine verworfene Position fallen
+-- können, und parent_id wäre dann NULL geblieben, obwohl der Kommentar
+-- nicht der erste des Tickets ist.
 --
--- created_at entsteht rekursiv statt unabhängig: die Wurzel liegt
--- zwischen dem created_at ihres Tickets und dem Basisdatum, jede weitere
--- Ebene zwischen dem created_at ihres Elternteils und dem Basisdatum.
--- Ein Kommentar kann so nie vor seinem Ticket oder vor seinem eigenen
--- Elternteil liegen.
+-- created_at entsteht rekursiv: Die Wurzel liegt zwischen dem created_at
+-- ihres Tickets und dem Basisdatum, jede weitere Ebene zwischen dem
+-- created_at ihres Elternteils und dem Basisdatum. So liegt kein Kommentar
+-- vor seinem Ticket oder vor seinem eigenen Elternteil.
 WITH RECURSIVE raw_shape AS (
     SELECT t.id AS ticket_id, local_rn
     FROM generate_series(1, (800000)::bigint) AS t(id)

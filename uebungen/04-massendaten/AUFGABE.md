@@ -14,9 +14,9 @@ Zeile in der Mitte darf keine halb geladene Tabelle hinterlassen. `COPY`
 verwirft alle übertragenen Zeilen, wenn der Import nicht abgeschlossen
 wird; du musst nichts zurückrollen, nur nicht abschließen. Und der Import
 liest die Eingabe zeilenweise, während er schreibt. Wer die CSV erst
-vollständig in den Speicher lädt, braucht
-für eine 200-MB-Datei 200 MB Speicher und verliert die Zeit, in der Lesen
-und Schreiben parallel laufen könnten.
+vollständig in den Speicher lädt, braucht für eine 200-MB-Datei 200 MB
+Speicher und verliert die Zeit, in der Lesen und Schreiben parallel laufen
+könnten.
 
 ## Was du vorfindest
 
@@ -130,7 +130,8 @@ gibt die Verbindung an den Pool zurück. Du schreibst dafür keine Zeile
 Aufräumcode.
 
 Prüfe die Zeile, bevor du `StartRowAsync` aufrufst. Eine halb
-geschriebene Zeile beim Abbruch ist zwar unschädlich, aber unnötig.
+geschriebene Zeile schadet beim Abbruch zwar nicht, lässt sich so aber
+ganz vermeiden.
 
 ### 4. Abschließen
 
@@ -183,8 +184,8 @@ vier Tests sagen dann, ob der Import selbst richtig ist.
   wartet das `COPY` auf Daten; PostgreSQL zählt Wartezeit auf den Client
   nicht als Anweisungslaufzeit, deshalb bleibt der Test unter der Grenze.
 - `WriteAsync(string)` für eine leere Bemerkung speichert einen leeren
-  Text, nicht NULL. Der erste Test zählt `remark = 'stocktake'`, das
-  ist davon unabhängig, aber die Tabelle ist dann falsch befüllt.
+  Text statt NULL. Der erste Test zählt `remark = 'stocktake'` und
+  bemerkt das nicht, die Tabelle ist trotzdem falsch befüllt.
 - Ein `catch` um die Schleife, der die Ausnahme schluckt und
   `CompleteAsync` aufruft, bestätigt die Zeilen vor dem Fehler. Der
   Fehlertest findet dann 149999 Zeilen.

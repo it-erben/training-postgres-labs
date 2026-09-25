@@ -74,12 +74,12 @@ ORDER BY ordinal_position;
 
 ## Hinweise
 
-Ein Lauf gegen eine lokale Testinstanz dauerte rund 58 Sekunden, auf dem
-Kurs-Server kann die Dauer abweichen. Ein erneuter Lauf von `setup.sql`
+Gegen eine lokale Testinstanz dauerte ein Lauf rund 58 Sekunden. Auf dem
+Kurs-Server kann das anders aussehen. Ein erneuter Lauf von `setup.sql`
 löscht das Schema `tickets` samt aller Übungsobjekte darin und baut es neu
-auf; die Mengen und Werte bleiben dabei gleich.
+auf. Mengen und Werte bleiben dabei gleich.
 
-Bleibt der Lauf hängen und bricht nach einigen Sekunden mit
+Bleibt der Lauf hängen und bricht nach fünf Sekunden mit
 `ERROR: canceling statement due to lock timeout` ab, hat ein anderer
 Query-Tool-Tab noch eine offene Transaktion auf einer Tabelle im Schema
 `tickets`. Schließe diesen Tab oder führe dort `ROLLBACK;` aus und starte

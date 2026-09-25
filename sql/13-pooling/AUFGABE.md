@@ -4,11 +4,11 @@
 
 Jede Verbindung zum Ticketsystem belegt auf der Primärinstanz einen
 eigenen Serverprozess. Du liest die Grenze `max_connections`, zählst deine
-eigenen Verbindungen und ordnest sie über `application_name` zu. Du
-rechnest, ob drei Instanzen einer Anwendung mit je einem Npgsql-Pool in
-deinen Cluster passen. Danach erzeugst du eine offene Transaktion ohne
-Aktivität, findest sie aus einer zweiten Verbindung und lässt sie von
-einer Leerlaufgrenze beenden.
+eigenen Verbindungen und ordnest sie über `application_name` zu. Mit
+diesen Zahlen rechnest du nach, ob drei Instanzen einer Anwendung mit je
+einem Npgsql-Pool in deinen Cluster passen. Danach erzeugst du eine offene
+Transaktion ohne Aktivität, findest sie aus einer zweiten Verbindung und
+lässt sie von einer Leerlaufgrenze beenden.
 
 ## Ausgangsstand
 
@@ -73,7 +73,7 @@ die übrigen Query Tools nach Aufgabe 3.
    ```
 
    `schon_belegt` zählt alle Sitzungen mit Rolle und Datenbank, auch
-   fremde: Die Plätze ohne Reserve teilen sich deine Werkzeuge, die
+   fremde, denn die Plätze ohne Reserve teilen sich deine Werkzeuge, die
    Anwendung und die Sitzungen, die CloudNativePG selbst öffnet. WAL-Sender
    der Replikate haben keine Datenbank und belegen keinen Platz.
 
@@ -216,8 +216,8 @@ Die Rolle `app` sieht bei fremden Sitzungen Rolle, Datenbank und
 `Longest Transaction`. Dort erscheint auch die offene Transaktion aus
 Aufgabe 4, mit einigen Sekunden Verzögerung.
 
-`25P03` ist ein `FATAL`: Der Server beendet die Verbindung, die offene
-Transaktion wird zurückgerollt. Für weitere Befehle in A braucht das
+`25P03` kommt als `FATAL`. Der Server beendet die Verbindung und rollt die
+offene Transaktion zurück. Für weitere Befehle in A braucht das
 Query Tool eine neue Verbindung. Dort gilt die Grenze nicht mehr, weil
 `SET` nur für die Sitzung gilt, in der es lief. Für eine
 Anwendung gehört die Grenze an die Rolle, etwa
@@ -230,4 +230,4 @@ Npgsql-Pool auf vier Verbindungen und prüft die Grenze in
 
 `loesung.sql` liest nur und lässt sich mehrfach ausführen. Aufgabe 4 und
 5 stehen dort als Kommentarblöcke mit `-- Verbindung A` und
-`-- Verbindung B`, weil eine Skriptausführung nur eine Verbindung besitzt.
+`-- Verbindung B`, weil eine Skriptausführung nur eine Verbindung hat.

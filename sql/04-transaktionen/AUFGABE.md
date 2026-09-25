@@ -15,8 +15,8 @@ Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Du brauchst zwei
 Verbindungen A und B, für Aufgabe 5 zusätzlich eine dritte Verbindung C.
 Arbeite in allen drei mit `Auto commit` an und `Auto rollback on error`
-aus: Aufgabe 4 lässt eine Transaktion bewusst mit einem Fehler enden, und
-in Aufgabe 1 und 3 bleiben Transaktionen absichtlich eine Weile offen.
+aus. Aufgabe 4 lässt eine Transaktion bewusst mit einem Fehler enden, in
+Aufgabe 1 und 3 bleiben Transaktionen absichtlich eine Weile offen.
 
 Setze Ticket 1 und 2 zurück und lege die Protokolltabelle an:
 
@@ -74,7 +74,7 @@ Sitzungen gezielt in `pg_stat_activity`.
    ```
 
    Beide `UPDATE`-Anweisungen laufen ohne Fehler durch. `tickets.ticket`
-   enthält am Ende nur die Zuweisung von B; die Zuweisung von A ist
+   enthält am Ende nur die Zuweisung von B. Die Zuweisung von A ist
    verloren, obwohl beide Sitzungen einen Erfolg protokolliert haben.
 
 2. **Dieselbe Situation mit `SELECT ... FOR UPDATE`.** Setze Ticket 1 zuerst
@@ -103,8 +103,8 @@ Sitzungen gezielt in `pg_stat_activity`.
    COMMIT;
    ```
 
-   B erhält danach sein Ergebnis: `agent_id = 1`, nicht mehr `NULL`. B sieht
-   damit die bereits erfolgte Zuweisung und weist selbst nicht mehr zu:
+   B erhält danach sein Ergebnis und sieht `agent_id = 1`, also die
+   Zuweisung von A. B weist deshalb selbst nicht mehr zu:
 
    ```sql
    ROLLBACK;
@@ -173,9 +173,9 @@ Sitzungen gezielt in `pg_stat_activity`.
    ```
 
    Sobald A bestätigt, meldet die wartende Anweisung von B SQLSTATE
-   `40001`: `could not serialize access due to concurrent update`. Anders
-   als unter `READ COMMITTED` wiederholt PostgreSQL hier die Bedingung
-   nicht stillschweigend auf der neuen Zeilenversion. Schließe B ab:
+   `40001`: `could not serialize access due to concurrent update`. Unter
+   `READ COMMITTED` würde PostgreSQL die Bedingung stillschweigend auf der
+   neuen Zeilenversion wiederholen. Schließe B ab:
 
    ```sql
    ROLLBACK;
@@ -204,8 +204,8 @@ Sitzungen gezielt in `pg_stat_activity`.
    ORDER BY a.application_name, l.mode;
    ```
 
-   B hält eine nicht gewährte Sperre auf die Transaktions-ID von A
-   (`granted = f`); genau diese Zeile erklärt das Warten. Schließe danach
+   Für B steht dort eine nicht gewährte Sperre auf die Transaktions-ID von
+   A (`granted = f`). Genau diese Zeile erklärt das Warten. Schließe danach
    in A mit `COMMIT;` und in B mit `ROLLBACK;` ab, wie in Aufgabe 4.
 
 **Bonus: Deadlock.** Setze Ticket 1 und 2 zurück:
@@ -238,7 +238,7 @@ SELECT id FROM tickets.ticket WHERE id = 1 FOR UPDATE;
 ```
 
 Eine der beiden Sitzungen bricht mit SQLSTATE `40P01` ab
-(`deadlock detected`); welche das ist, ist nicht garantiert. Die
+(`deadlock detected`). Welche es trifft, ist nicht festgelegt. Die
 abgebrochene Sitzung führt `ROLLBACK;` aus, die andere kann ihre
 Transaktion regulär fortsetzen und abschließen.
 
@@ -276,34 +276,33 @@ zusätzlich den Bonus ausführst, weil dieser keine weiteren Zeilen in
 ## Hinweise
 
 Ein reines `SELECT` ohne `FOR UPDATE` verhindert kein gleichzeitiges
-Schreiben; genau das zeigt Aufgabe 1. Zwei Sitzungen können denselben
-gelesenen Ausgangszustand für ihre jeweilige Entscheidung verwenden, ohne
-voneinander zu wissen.
+Schreiben. Genau das zeigt Aufgabe 1: Zwei Sitzungen entscheiden auf
+Grundlage desselben gelesenen Ausgangszustands, ohne voneinander zu
+wissen.
 
 `SELECT ... FOR UPDATE` sperrt die gelesene Zeile bis zum Ende der eigenen
 Transaktion. Eine wartende zweite Sitzung erhält nach der Freigabe den
 inzwischen aktuellen Wert der Zeile. Darauf beruht die Prüfung in
 Aufgabe 2.
 
-Das bedingte `UPDATE` aus Aufgabe 3 braucht keine vorherige Sperre. Jedes
-`UPDATE` sperrt seine Zielzeile bereits selbst; eine zweite Sitzung mit
+Das bedingte `UPDATE` aus Aufgabe 3 braucht keine vorherige Sperre, weil
+jedes `UPDATE` seine Zielzeile selbst sperrt. Eine zweite Sitzung mit
 derselben Bedingung wartet automatisch und wertet die Bedingung nach der
 Freigabe erneut aus.
 
-`40001` und `40P01` sind beides Fehler, nach denen die betroffene
-Transaktion komplett neu beginnen muss, nicht nur die letzte Anweisung.
-Ein einzelnes fehlgeschlagenes `UPDATE` innerhalb einer sonst
-unveränderten Transaktion reicht als Wiederholung nicht aus, wenn frühere
-Anweisungen auf demselben veralteten Lesestand beruhten.
+Nach `40001` und `40P01` muss die betroffene Transaktion komplett von
+vorn beginnen, mit allen Anweisungen. Das fehlgeschlagene `UPDATE` allein
+zu wiederholen reicht nicht, wenn frühere Anweisungen auf demselben
+veralteten Lesestand beruhten.
 
 `pg_blocking_pids()` berücksichtigt Warteschlangen und ist deshalb einem
 eigenen Selbstjoin auf `pg_locks` vorzuziehen. `pg_locks` allein zeigt
 Sperrobjekte und ihren Modus, aber nicht immer eine vollständige Liste
 aller Zeilensperren.
 
-Bei Ausführung als PID-Werte ändern sich zwischen zwei Läufen; das
-Verhalten bleibt gleich. `loesung.sql` enthält die Anweisungen beider
-Verbindungen als Kommentarblöcke, weil eine einzelne Skriptausführung
-keine zweite Verbindung besitzt. Der ausführbare Teil setzt nur Ticket 1
-und 2 zurück und legt `tickets.zuweisung_log` neu an; er lässt sich
-deshalb mehrfach ausführen.
+Die PID-Werte ändern sich von Lauf zu Lauf, das Verhalten bleibt gleich.
+`loesung.sql` enthält die Anweisungen beider Verbindungen als
+Kommentarblöcke, weil eine einzelne Skriptausführung keine zweite
+Verbindung besitzt. Der ausführbare Teil setzt nur Ticket 1 und 2 zurück
+und legt `tickets.zuweisung_log` neu an. Er lässt sich deshalb mehrfach
+ausführen.

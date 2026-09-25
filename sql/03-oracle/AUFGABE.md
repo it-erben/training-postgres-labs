@@ -3,7 +3,7 @@
 ## Ziel
 
 Du prüfst fünf Verhaltensunterschiede zwischen Oracle und PostgreSQL direkt
-an deiner Datenbank: leere Zeichenketten gegenüber NULL, die Verkettung mit
+an deiner Datenbank: leere Zeichenketten vs. NULL, die Verkettung mit
 NULL, den Rollback von DDL, einen Fehlerzustand mit Savepoint und die
 Groß- und Kleinschreibung von Bezeichnern. Jede Antwort landet als Zeile in
 einer eigenen Ergebnistabelle.
@@ -13,7 +13,7 @@ einer eigenen Ergebnistabelle.
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus. Aufgabe 4 legt
-absichtlich einen Fehlerzustand an; mit eingeschaltetem Auto rollback würde
+absichtlich einen Fehlerzustand an. Mit eingeschaltetem Auto rollback würde
 pgAdmin die gesamte Transaktion vorzeitig zurückrollen. Führe jeden
 Codeblock für sich aus: markieren, F5, dann der nächste Block.
 
@@ -108,9 +108,9 @@ CREATE TABLE tickets.migrationstext (
    SAVEPOINT vor_fehler;
    ```
 
-   Führe die beiden nächsten Anweisungen einzeln aus. Ein Fehler beendet die
-   Ausführung einer Markierung; eine zweite Anweisung darin würde gar nicht
-   mehr laufen.
+   Führe die beiden nächsten Anweisungen einzeln aus. Nach einem Fehler
+   bricht die Ausführung der Markierung ab, eine zweite Anweisung darin
+   liefe gar nicht mehr.
 
    ```sql
    INSERT INTO tickets.buchungstest VALUES (1, 20.00);
@@ -124,8 +124,8 @@ CREATE TABLE tickets.migrationstext (
    `23505`. Die folgende `SELECT`-Anweisung läuft in der bereits
    fehlgeschlagenen Transaktion und liefert deshalb SQLSTATE `25P02`, ohne
    selbst einen inhaltlichen Fehler zu haben. Erst `ROLLBACK TO SAVEPOINT`
-   hebt den Fehlerzustand auf; die Einfügung vor dem Savepoint bleibt dabei
-   erhalten:
+   hebt den Fehlerzustand auf. Die Zeile, die vor dem Savepoint eingefügt
+   wurde, bleibt dabei erhalten:
 
    ```sql
    ROLLBACK TO SAVEPOINT vor_fehler;
@@ -158,9 +158,9 @@ CREATE TABLE tickets.migrationstext (
    ```
 
    Ohne Anführungszeichen faltet PostgreSQL den Namen auf Kleinschreibung.
-   Die tatsächlich angelegte Tabelle heißt `Kunde`, nicht `kunde`; die
-   Abfrage schlägt deshalb mit SQLSTATE `42P01` fehl. Schreibe fest, dass
-   die Tabelle unter ihrem richtigen Namen weiterhin existiert:
+   Angelegt wurde aber `Kunde` mit großem K, deshalb schlägt die Abfrage mit
+   SQLSTATE `42P01` fehl. Halte fest, dass die Tabelle unter ihrem richtigen
+   Namen weiterhin existiert:
 
    ```sql
    INSERT INTO tickets.pruefung (nr, ergebnis)
@@ -191,30 +191,28 @@ Referenzlauf:
 `count(spalte)` zählt nur Werte, die nicht NULL sind. Aufgabe 1 zeigt
 denselben Mechanismus auf einer eigens angelegten Tabelle, weil `subject` in
 `tickets.ticket` `NOT NULL` ist und dort keine NULL-Zeile eingefügt werden
-kann. Bei entsprechenden Oracle-`VARCHAR2`-Spalten gilt die leere
-Zeichenkette selbst als NULL; dieser Unterschied betrifft jede Migration
-mit Textspalten aus Oracle.
+kann. In einer Oracle-`VARCHAR2`-Spalte ist die leere Zeichenkette selbst
+NULL. Das betrifft jede Migration mit Textspalten aus Oracle.
 
-`'a' || NULL` ergibt NULL: Der Operator `||` behandelt ein NULL-Argument wie
-ein unbekanntes Ergebnis der gesamten Verkettung. `concat('a', NULL)`
-ignoriert das NULL-Argument und liefert `a`. Beide Funktionen sind in
-PostgreSQL vorhanden; welche zu einer bestehenden Anwendung passt, hängt von
-der dort erwarteten Bedeutung von NULL ab.
+`'a' || NULL` ergibt NULL. Ist ein Argument von `||` NULL, ist die gesamte
+Verkettung unbekannt. `concat('a', NULL)` ignoriert das NULL-Argument und
+liefert `a`. PostgreSQL hat beide. Welche Variante zu einer bestehenden
+Anwendung passt, hängt davon ab, was NULL dort bedeuten soll.
 
 `CREATE TABLE` innerhalb von `BEGIN` gehört unter PostgreSQL zur normalen
-Transaktion und wird von `ROLLBACK` miterfasst. Unter Oracle 19c erzeugt
-gültiges DDL ein implizites Commit vor und nach seiner Ausführung; ein
-späteres Rollback nimmt eine bereits angelegte Tabelle dort nicht zurück.
+Transaktion, `ROLLBACK` nimmt es mit zurück. Unter Oracle 19c löst gültiges
+DDL vor und nach seiner Ausführung ein implizites Commit aus. Ein späteres
+Rollback nimmt eine bereits angelegte Tabelle dort nicht zurück.
 
 SQLSTATE `25P02` bedeutet, dass die Transaktion bereits abgebrochen ist und
 jede weitere Anweisung ignoriert wird, bis ein `ROLLBACK` oder ein
-`ROLLBACK TO SAVEPOINT` folgt. Ein `SAVEPOINT` vor der riskanten Anweisung
-erlaubt es, nur den Teil ab dem Savepoint zurückzunehmen und die
-Transaktion danach fortzusetzen, ähnlich einem Oracle-Savepoint innerhalb
-eines PL/SQL-Blocks.
+`ROLLBACK TO SAVEPOINT` folgt. Mit einem `SAVEPOINT` vor der riskanten
+Anweisung lässt sich nur der Teil ab dem Savepoint zurücknehmen, danach
+läuft die Transaktion weiter. Ein Oracle-Savepoint in einem PL/SQL-Block
+funktioniert ähnlich.
 
-Ein unquotierter Bezeichner wird unter PostgreSQL auf Kleinschreibung
-gefaltet, unter Oracle dagegen auf Großschreibung. `"Kunde"` bewahrt die
+PostgreSQL faltet einen unquotierten Bezeichner auf Kleinschreibung, Oracle
+auf Großschreibung. `"Kunde"` bewahrt die
 Schreibweise, verlangt danach aber bei jedem Zugriff genau diese
 Schreibweise in Anführungszeichen. Der Name `kunde` bezeichnet ein anderes,
 nicht vorhandenes Objekt.
@@ -223,5 +221,5 @@ nicht vorhandenes Objekt.
 einzeln markiert und ausgeführt. Die drei Anweisungen mit erwartetem Fehler
 stehen dort als Kommentar mit ihrem SQLSTATE. Abschnitt 1 entfernt
 `tickets.pruefung`, `tickets.migrationstext`, `tickets.ddl_test`,
-`tickets.buchungstest` und `tickets."Kunde"`; die Datei lässt sich deshalb
+`tickets.buchungstest` und `tickets."Kunde"`. Die Datei lässt sich deshalb
 mehrfach ausführen.

@@ -12,8 +12,8 @@ Sequenz der Tickets steht.
 ## Ausgangsstand
 
 Die Übung braucht das Schema `tickets` nicht und ändert es nicht. Arbeite
-im pgAdmin mit dem RW-Server deiner Servergruppe, Datenbank `app`. Im
-Query Tool `Auto commit` an und `Auto rollback on error` aus.
+im pgAdmin mit dem RW-Server deiner Servergruppe, Datenbank `app`, und
+schalte im Query Tool `Auto commit` an und `Auto rollback on error` aus.
 
 Diesen Block führst du in Aufgabe 1 aus. Er entfernt zuerst die Schemas
 aus einem früheren Lauf und legt das Ausgangsschema neu an:
@@ -184,8 +184,8 @@ beschädigte Stand wäre danach nicht mehr zum Vergleich da.
 
 pgAdmin legt die Sicherungsdatei in deinem Speicherbereich auf dem
 pgAdmin-Server ab. Über `Tools`, `Storage Manager` kannst du sie
-herunterladen. Mit `pg_dump` und `pg_restore` auf einem eigenen Rechner
-sehen dieselben Schritte so aus, `<verbindung>` steht für die
+herunterladen. Auf einem eigenen Rechner sehen dieselben Schritte mit
+`pg_dump` und `pg_restore` so aus; `<verbindung>` steht für die
 Verbindungsangabe deines RW-Servers:
 
 ```bash

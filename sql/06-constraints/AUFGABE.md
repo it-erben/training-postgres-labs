@@ -12,9 +12,9 @@ wird.
 
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
-Tool mit `Auto commit` an und `Auto rollback on error` aus: Aufgabe 4 und 5
-lösen absichtlich Fehler aus. Für Aufgabe 1 brauchst du zwei Verbindungen A
-und B.
+Tool mit `Auto commit` an und `Auto rollback on error` aus, denn Aufgabe 4
+und 5 lösen absichtlich Fehler aus. Für Aufgabe 1 brauchst du zwei
+Verbindungen A und B.
 
 Entferne zu Beginn die Übungsobjekte, damit sich die Übung wiederholen
 lässt. `ticket_metadata_gin` aus den Übungen 2 und 5 bleibt davon
@@ -32,8 +32,8 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
 1. Lege für `tickets.ticket.priority` eine Prüfregel auf den Wertebereich 1
    bis 4 an, zuerst ungeprüft, dann validiert. Führe `ADD CONSTRAINT` als
    eigene, sofort bestätigte Anweisung aus, bevor du `VALIDATE CONSTRAINT`
-   in einer offenen Transaktion beobachtest: Läuft `ADD CONSTRAINT` in
-   derselben Transaktion wie `VALIDATE CONSTRAINT`, bleibt dessen kurze,
+   in einer offenen Transaktion beobachtest. Läuft `ADD CONSTRAINT` in
+   derselben Transaktion wie `VALIDATE CONSTRAINT`, bleibt seine kurze,
    aber starke Sperre bis zum `COMMIT` bestehen und verfälscht die
    Beobachtung. In A:
 
@@ -71,21 +71,21 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
 
    Schließe danach A ab: `COMMIT;`
 
-   `ADD CONSTRAINT ... NOT VALID` nimmt kurz `ACCESS EXCLUSIVE`, prüft den
-   Bestand aber nicht und gibt die Sperre mit dem Ende der Anweisung sofort
-   wieder frei. Neue und geänderte Zeilen unterliegen der Regel bereits ab
-   diesem Zeitpunkt. `VALIDATE CONSTRAINT` liest anschließend den
-   vorhandenen Bestand in einem separaten Schritt und hält dabei nur
-   `SHARE UPDATE EXCLUSIVE`, deutlich schwächer als die `ACCESS
-   EXCLUSIVE`-Sperre der vorangehenden Anweisung. `SHARE UPDATE EXCLUSIVE`
-   lässt gleichzeitiges Lesen und Schreiben zu: Das `UPDATE` in B läuft
-   durch, während A seine Transaktion noch hält. Blockiert wird nur eine
-   Sitzung, die ihrerseits DDL auf derselben Tabelle ausführen oder sie
-   `VACUUM`en möchte, etwa eine zweite `VALIDATE CONSTRAINT`, `CREATE INDEX
-   CONCURRENTLY` oder ein `ALTER TABLE ... ADD COLUMN`. Liefe `ADD
-   CONSTRAINT` in derselben, noch offenen Transaktion wie `VALIDATE
-   CONSTRAINT`, bliebe dessen `ACCESS EXCLUSIVE` bis zum `COMMIT` bestehen
-   und würde auch das `UPDATE` in B blockieren.
+   `ADD CONSTRAINT ... NOT VALID` nimmt kurz `ACCESS EXCLUSIVE`. Den
+   Bestand prüft es nicht, und die Sperre gibt es mit dem Ende der
+   Anweisung sofort wieder frei. Neue und geänderte Zeilen unterliegen der
+   Regel ab diesem Zeitpunkt. `VALIDATE CONSTRAINT` liest danach den
+   vorhandenen Bestand in einem eigenen Schritt und hält dabei nur
+   `SHARE UPDATE EXCLUSIVE`. Das ist deutlich schwächer als die
+   `ACCESS EXCLUSIVE`-Sperre der Anweisung davor und lässt gleichzeitiges
+   Lesen und Schreiben zu. Das `UPDATE` in B läuft also durch, während A
+   seine Transaktion noch hält. Blockiert wird nur eine Sitzung, die
+   ihrerseits DDL auf derselben Tabelle ausführen oder sie `VACUUM`en
+   möchte, etwa eine zweite `VALIDATE CONSTRAINT`, `CREATE INDEX
+   CONCURRENTLY` oder ein `ALTER TABLE ... ADD COLUMN`. Liefe
+   `ADD CONSTRAINT` in derselben, noch offenen Transaktion wie
+   `VALIDATE CONSTRAINT`, bliebe seine `ACCESS EXCLUSIVE`-Sperre bis zum
+   `COMMIT` bestehen und würde auch das `UPDATE` in B blockieren.
 
 2. Finde mit `pg_constraint` und `pg_index` alle Fremdschlüssel im Schema
    `tickets`, deren erste Spalte keinen Index anführt:
@@ -137,9 +137,9 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
 
    `EXCLUDE USING gist` verbietet zwei Zeilen, für die alle genannten
    Operatoren gleichzeitig `TRUE` ergeben: gleicher `agent_id`-Wert
-   (`=`) und überlappender Zeitraum (`&&`). `btree_gist` liefert den
-   GiST-Operatorklassen für `=` auf `bigint`, den `tstzrange` selbst
-   schon mitbringt.
+   (`=`) und überlappender Zeitraum (`&&`). `btree_gist` liefert die
+   GiST-Operatorklasse für `=` auf `bigint`. `tstzrange` bringt seine
+   GiST-Unterstützung selbst mit.
 
 4. Füge zwei angrenzende Bereitschaftszeiten für Agent 1 ein und danach
    eine Zeit, die beide überlappt:
@@ -178,11 +178,11 @@ DROP INDEX IF EXISTS tickets.comment_parent_idx;
    -- foreign key constraint "ticket_referenz_ticket_id_fkey"
    ```
 
-   `DEFERRABLE INITIALLY DEFERRED` verschiebt die Prüfung auf das Ende der
+   Mit `DEFERRABLE INITIALLY DEFERRED` prüft PostgreSQL erst am Ende der
    Transaktion. Das `INSERT` selbst meldet keinen Fehler, obwohl die
    referenzierte Zeile fehlt. Erst `COMMIT` wertet den Fremdschlüssel aus
-   und bricht die gesamte Transaktion mit SQLSTATE `23503` ab; die
-   eingefügte Zeile bleibt nicht bestehen.
+   und bricht die gesamte Transaktion mit SQLSTATE `23503` ab. Die
+   eingefügte Zeile ist danach wieder weg.
 
 ## Ergebnis prüfen
 
@@ -211,31 +211,33 @@ Referenzlauf:
 (2 rows)
 ```
 
-`convalidated = t` gilt für beide Regeln: `ticket_priority_check`, weil
-Aufgabe 1 sie ausdrücklich validiert hat, `bereitschaft_..._excl`, weil ein
-beim `CREATE TABLE` angelegter Constraint nie im Zustand `NOT VALID`
-beginnt. Nur ein nachträglich per `ALTER TABLE ... ADD CONSTRAINT`
-angefügter Constraint kennt diesen Zwischenzustand.
+`convalidated = t` gilt für beide Regeln. `ticket_priority_check` hat
+Aufgabe 1 ausdrücklich validiert. `bereitschaft_..._excl` entstand mit
+`CREATE TABLE`, und ein dort angelegter Constraint beginnt nie im Zustand
+`NOT VALID`. Diesen Zwischenzustand kennt nur ein Constraint, der
+nachträglich per `ALTER TABLE ... ADD CONSTRAINT` dazukommt.
 
 ## Hinweise
 
-`pg_constraint.conkey` und `pg_index.indkey` speichern Spaltenpositionen,
-nicht Spaltennamen. `conkey` ist ein bei 1 beginnendes Array, `indkey` ein
-bei 0 beginnendes `int2vector`; deshalb vergleicht die Abfrage in Aufgabe 2
-`conkey[1]` mit `indkey[0]`. Ein zusammengesetzter Fremdschlüssel bräuchte
-einen Vergleich über alle Positionen; hier reicht die erste Spalte, weil
-jeder betroffene Fremdschlüssel nur eine Spalte umfasst.
+`pg_constraint.conkey` und `pg_index.indkey` speichern Spaltenpositionen.
+`conkey` ist ein bei 1 beginnendes Array, `indkey` ein bei 0 beginnendes
+`int2vector`. Deshalb vergleicht die Abfrage in Aufgabe 2 `conkey[1]` mit
+`indkey[0]`. Ein zusammengesetzter Fremdschlüssel bräuchte einen Vergleich
+über alle Positionen. Hier reicht die erste Spalte, weil jeder betroffene
+Fremdschlüssel nur eine Spalte umfasst.
 
-Ein Index auf einer Fremdschlüsselspalte entsteht in PostgreSQL nicht
-automatisch, anders als beim Primärschlüssel selbst. Ohne ihn braucht ein
-`DELETE` auf der Elterntabelle für die Fremdschlüsselprüfung einen
-sequenziellen Scan der Kindtabelle, und rekursive Abfragen wie in Übung 5
-lesen bei jedem Rekursionsschritt ohne Index die gesamte Tabelle.
+Für den Primärschlüssel legt PostgreSQL automatisch einen Index an. Für
+eine Fremdschlüsselspalte muss ihn jemand selbst anlegen. Ohne diesen
+Index braucht ein `DELETE` auf der Elterntabelle für die
+Fremdschlüsselprüfung einen sequenziellen Scan der Kindtabelle. Rekursive
+Abfragen wie in Übung 5 lesen ohne Index bei jedem Rekursionsschritt die
+gesamte Tabelle.
 
 `EXCLUDE USING gist` erweitert die Idee eines Unique-Constraints von
-Gleichheit auf beliebige Operatoren. Statt "keine zwei Zeilen mit
-gleichem Wert" gilt hier "keine zwei Zeilen, für die Gleichheit auf
-`agent_id` und Überlappung auf `zeitraum` gleichzeitig zutreffen".
+Gleichheit auf beliebige Operatoren. Ein Unique-Constraint verbietet zwei
+Zeilen mit gleichem Wert. Der Exclusion Constraint hier verbietet zwei
+Zeilen, für die Gleichheit auf `agent_id` und Überlappung auf `zeitraum`
+gleichzeitig zutreffen.
 
 `loesung.sql` entfernt zu Beginn `tickets.ticket_referenz`,
 `tickets.bereitschaft`, `ticket_priority_check` und `comment_parent_idx`

@@ -5,11 +5,11 @@
 Das Ticketsystem nimmt Aufträge wie "Ticket einer Agentin zuweisen"
 entgegen, die eine Anwendung nach einem Verbindungsfehler wiederholen
 kann. Du legst dafür eine Auftragstabelle mit einer Operations-ID an und
-prüfst, dass eine Wiederholung keinen zweiten Auftrag erzeugt. Du erkennst
-einen Schlüssel, der mit anderer Nutzlast wiederverwendet wird. Danach
-beobachtest du, was eine offene Verbindung bei einem Switchover erlebt,
-und entscheidest für typische Fehlerklassen, ob eine Wiederholung
-sinnvoll ist.
+prüfst, dass eine Wiederholung keinen zweiten Auftrag erzeugt. Eine
+Abfrage zeigt dir, wenn ein Schlüssel mit anderer Nutzlast wiederverwendet
+wird. Danach beobachtest du, was eine offene Verbindung bei einem
+Switchover erlebt, und entscheidest für typische Fehlerklassen, ob eine
+Wiederholung sinnvoll ist.
 
 ## Ausgangsstand
 
@@ -167,9 +167,9 @@ Referenzlauf mit psql (PostgreSQL 18.6, lokal) nach Aufgabe 3:
 (2 rows)
 ```
 
-Die erste Zeile stammt aus Aufgabe 2 und bleibt unverändert: Die
-Wiederholung mit derselben ID und der Versuch mit anderer Nutzlast aus
-Aufgabe 3 legen keine Zeile an. Die zweite Zeile stammt aus der
+Die erste Zeile stammt aus Aufgabe 2 und bleibt unverändert, weil weder
+die Wiederholung mit derselben ID noch der Versuch mit anderer Nutzlast aus
+Aufgabe 3 eine Zeile anlegt. Die zweite Zeile stammt aus der
 Wiederholung mit neuer ID. Beabsichtigt war ein Auftrag.
 
 Die Abfrage aus Aufgabe 3 in `loesung.sql` zeigte im selben Lauf:
@@ -193,10 +193,10 @@ auch Konflikte auf jeder anderen eindeutigen Spalte still übergehen.
 `RETURNING` liefert beim ersten Versuch eine Zeile und bei jeder
 Wiederholung keine. Daran erkennt die Anwendung einen Auftrag, der schon
 ausgeführt ist. Danach vergleicht sie die gespeicherte Nutzlast mit der
-gesendeten: Stimmen sie überein, meldet sie Erfolg. Weichen sie ab, ist
+gesendeten. Stimmen sie überein, meldet sie Erfolg. Weichen sie ab, ist
 es ein Programmfehler, und eine Wiederholung ändert daran nichts. `jsonb`
-vergleicht den Inhalt, Leerzeichen und die Reihenfolge der Schlüssel
-spielen keine Rolle.
+vergleicht den Inhalt; Leerzeichen und die Reihenfolge der Schlüssel sind
+dabei egal.
 
 Die fachliche Wirkung eines Auftrags gehört in dieselbe Transaktion wie
 die Zeile in `tickets.auftrag`. Dann stehen nach einem Abbruch entweder
@@ -218,14 +218,14 @@ FROM neu
 WHERE t.id = neu.ticket_id;
 ```
 
-Lokal mit festen Werten für Ticket 2 geprüft: Der erste Lauf meldete
-`UPDATE 1`, die Wiederholung mit derselben ID und anderer Agentin
-`UPDATE 0`; Ticket 2 behielt die Agentin aus dem ersten Lauf.
+Ein lokaler Lauf mit festen Werten für Ticket 2 meldete zuerst
+`UPDATE 1` und bei der Wiederholung mit derselben ID und anderer Agentin
+`UPDATE 0`. Ticket 2 behielt die Agentin aus dem ersten Lauf.
 
 Beim Switchover fährt die alte Primärinstanz schnell herunter. Sie rollt
 offene Transaktionen zurück und beendet jede Verbindung mit `57P01`,
-derselben Meldung wie `pg_terminate_backend`. `57P01` ist ein `FATAL`:
-Für weitere Befehle braucht das Query Tool eine neue Verbindung. Der
+derselben Meldung wie `pg_terminate_backend`. `57P01` kommt als `FATAL`,
+deshalb braucht das Query Tool für weitere Befehle eine neue Verbindung. Der
 Hostname `<cluster>-rw` führt danach zur neuen Primärinstanz.
 
 Eine Verbindung zum RO-Server kann den Switchover überstehen, wenn sie mit

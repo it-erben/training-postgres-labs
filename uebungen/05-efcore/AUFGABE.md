@@ -10,10 +10,10 @@ wieder sichtbar: Die Tests bauen den Kontext mit einem Interceptor, der
 jede gesendete Anweisung zählt und die letzte festhält.
 
 Das Schema existiert bereits aus den Übungen 1 und 2, mit Enum-Typ,
-Bereichsspalte und JSON-Dokument. EF Core wird darauf abgebildet, ohne
-eigene Migration. Geübt werden vier Muster: Abfragen ohne N+1, Übersichten
-ohne Änderungsverfolgung, Mengenänderungen ohne Laden und die
-Systemspalte `xmin` als Versionsmerkmal für optimistische Sperren.
+Bereichsspalte und JSON-Dokument. Du bildest EF Core darauf ab und
+schreibst keine eigene Migration. Geübt werden vier Muster: Abfragen ohne
+N+1, Übersichten ohne Änderungsverfolgung, Mengenänderungen ohne Laden und
+die Systemspalte `xmin` als Versionsmerkmal für optimistische Sperren.
 
 ## Was du vorfindest
 
@@ -104,9 +104,10 @@ exist`.
 
 ### 3. Das JSON-Dokument
 
-`Extra` wird als Owned Type in einer JSON-Spalte abgelegt. Die Schlüsselnamen
-müssen zu dem passen, was Übung 2 mit camelCase geschrieben hat, sonst liest EF
-Core `PickupLocation` und findet `pickupLocation` nicht:
+`Extra` wird als Owned Type in einer JSON-Spalte abgelegt. Die
+Schlüsselnamen müssen zu dem passen, was Übung 2 mit camelCase
+geschrieben hat. Sonst sucht EF Core den Schlüssel `PickupLocation`, im Dokument
+steht aber `pickupLocation`:
 
 ```csharp
 b.OwnsOne(x => x.Extra, z =>

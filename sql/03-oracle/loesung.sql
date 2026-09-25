@@ -1,9 +1,9 @@
 -- Musterlösung zu SQL-Übung 3. Im Query Tool abschnittsweise ausführen:
 -- jeden mit "-- Abschnitt" beginnenden Block einzeln markieren und mit F5
 -- ausführen. Anweisungen mit erwartetem Fehler (23505, 25P02, 42P01) stehen
--- als Kommentar mit ihrem SQLSTATE; im Query Tool werden sie jeweils allein
--- markiert und ausgeführt. Abschnitt 1 entfernt alle Übungsobjekte; die
--- Datei lässt sich deshalb wiederholen.
+-- als Kommentar mit ihrem SQLSTATE. Im Query Tool werden sie jeweils allein
+-- markiert und ausgeführt. Die Datei verträgt beliebig viele Läufe, weil der
+-- erste Abschnitt alle Übungsobjekte entfernt.
 
 -- Abschnitt 1: Rücksetzen und Ergebnistabelle
 DROP TABLE IF EXISTS tickets.pruefung;

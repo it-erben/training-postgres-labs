@@ -46,8 +46,8 @@ public sealed class BookingService(NpgsqlDataSource dataSource)
 
 Die beiden Ausnahmen:
 
-- `BookingRejectedException(string reason)`: Die fachliche Regel lehnt ab. Kein
-  Fehler des Servers.
+- `BookingRejectedException(string reason)`: Die fachliche Regel lehnt ab; der
+  Server meldet dabei keinen Fehler.
 - `BookingConflictException(string constraintName, Exception inner)`: Ein
   Constraint hat die Buchung verhindert, etwa die Überlappung aus Übung 2.
   Trägt den Constraint-Namen.
@@ -84,12 +84,12 @@ aber darauf hin, dass eine Transaktion offen ist.
 ### 2. Wiederholbare Fehler erkennen
 
 `IsRetryable` liefert `true` für `PostgresErrorCodes.SerializationFailure`
-(`40001`) und `PostgresErrorCodes.DeadlockDetected` (`40P01`). Beide sagen:
-Die Transaktion war fachlich in Ordnung, aber sie hat mit einer anderen
-kollidiert. Ein zweiter Anlauf hat gute Aussichten.
+(`40001`) und `PostgresErrorCodes.DeadlockDetected` (`40P01`). Beide
+bedeuten, dass die Transaktion fachlich in Ordnung war und nur mit einer
+anderen kollidiert ist. Ein zweiter Anlauf hat gute Aussichten.
 
 Alle anderen SQLSTATEs sind nicht wiederholbar. Eine Überlappung (`23P01`)
-wird beim zweiten Mal genauso überlappen.
+überlappt beim zweiten Mal genauso.
 
 ### 3. Die Schleife
 
@@ -179,10 +179,10 @@ wäre ein dritter Aufruf.
 ## Fallstricke
 
 - Nach einem Fehler innerhalb der Transaktion ist sie abgebrochen. Jede
-  weitere Anweisung meldet `25P02`. Deshalb wird nicht die Anweisung
-  wiederholt, sondern die ganze Transaktion mit neuer Verbindung.
-- `40001` kann beim `COMMIT` auftreten, nicht nur bei einer Anweisung.
-  `tx.CommitAsync` gehört in den `try`-Block.
+  weitere Anweisung meldet `25P02`. Deshalb wiederholst du die ganze
+  Transaktion mit neuer Verbindung.
+- `40001` kann auch erst beim `COMMIT` auftreten. `tx.CommitAsync` gehört
+  deshalb in den `try`-Block.
 - Der Hook darf werfen. Eine Ausnahme aus dem Hook, die keine
   `PostgresException` ist, muss unverändert nach außen gelangen.
 - Der Standard von `BeginTransactionAsync()` ist `ReadCommitted`. Damit
@@ -205,9 +205,9 @@ Cancel-Anfrage an den Server, der die Abfrage mit `57014` beendet.
 `Advisory_lock_per_customer_avoids_the_conflict`: Mit `UseAdvisoryLock = true`
 hält die Transaktion vor dem Hook `SELECT pg_advisory_xact_lock($1)` mit der
 Kundennummer. Zwei Buchungen desselben Kunden laufen dann nacheinander
-statt in Konflikt. Der Test prüft im Hook, dass `pg_locks` für die eigene
-PID genau eine gewährte Sperre vom Typ `advisory` zeigt. Die Sperre endet
-mit der Transaktion.
+und geraten nicht in Konflikt. Der Test prüft im Hook, dass `pg_locks` für
+die eigene PID genau eine gewährte Sperre vom Typ `advisory` zeigt. Die
+Sperre endet mit der Transaktion.
 
 ## Fertig, wenn
 

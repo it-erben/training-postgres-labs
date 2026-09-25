@@ -6,7 +6,7 @@ Du legst denselben Teambericht einmal als View und einmal als Materialized
 View an, zeigst die Abweichung nach einem Nachtrag und aktualisierst die
 Materialized View, ohne lesende Sitzungen zu blockieren. Zum Schluss
 begründest du die Wahl zwischen direkter Abfrage, View und Materialized
-View für einen Bericht mit einer erlaubten Alterung von fünf Minuten.
+View für einen Bericht, der bis zu fünf Minuten alt sein darf.
 
 ## Ausgangsstand
 
@@ -124,10 +124,10 @@ DELETE FROM tickets.ticket WHERE metadata ? 'kurs_modul08';
    ```
 
    Diese Anweisung läuft durch, obwohl A seine Transaktion weiterhin offen
-   hält: `CONCURRENTLY` nimmt nur eine `EXCLUSIVE`-Sperre, die lesende
-   Zugriffe zulässt, und schreibt das neue Ergebnis über einen Vergleich
-   mit dem alten Bestand statt über einen kompletten Neuaufbau. Schließe
-   danach A ab:
+   hält. `CONCURRENTLY` nimmt nur eine `EXCLUSIVE`-Sperre, die lesende
+   Zugriffe zulässt. Das neue Ergebnis schreibt es über einen Vergleich mit
+   dem alten Bestand statt über einen kompletten Neuaufbau. Schließe danach
+   A ab:
 
    ```sql
    COMMIT;
@@ -166,22 +166,24 @@ Referenzlauf nach dem `REFRESH ... CONCURRENTLY` aus Aufgabe 4:
 
 Eine direkte Abfrage ohne View oder Materialized View liest bei jedem
 Aufruf den vollständigen, aktuellen Bestand. Sie passt, wenn der Bericht
-selten gelesen wird oder Aktualität wichtiger ist als Antwortzeit.
+selten gelesen wird oder aktuelle Zahlen wichtiger sind als eine kurze
+Antwortzeit.
 
-Eine View benennt eine Abfrage, ohne Rechenaufwand zu sparen: Jeder Aufruf
-führt die volle Aggregation erneut aus. Sie passt, wenn Wiederverwendung
-der SQL-Formulierung im Vordergrund steht, nicht Entlastung der Datenbank.
+Eine View gibt einer Abfrage einen Namen und spart keinen Rechenaufwand.
+Jeder Aufruf führt die volle Aggregation erneut aus. Sie passt, wenn es
+darum geht, dieselbe SQL-Formulierung an mehreren Stellen zu verwenden.
+Die Datenbank entlastet sie nicht.
 
-Eine Materialized View spart Rechenaufwand bei jedem Lesezugriff, verlangt
-dafür aber eine explizite Aktualisierungsstrategie. Ein Bericht mit einer
-erlaubten Alterung von fünf Minuten passt zu einem periodischen `REFRESH
-... CONCURRENTLY`, ausgelöst durch einen Scheduler außerhalb der
-Datenbank, etwa alle vier Minuten.
+Eine Materialized View spart bei jedem Lesezugriff Rechenaufwand. Dafür
+muss ausdrücklich festgelegt sein, wann und wie sie aktualisiert wird. Zu
+einem Bericht, der fünf Minuten alt sein darf, passt ein periodischer
+`REFRESH ... CONCURRENTLY` etwa alle vier Minuten, ausgelöst von einem
+Scheduler außerhalb der Datenbank.
 
 `ispopulated = f` zeigt eine Materialized View, die mit `WITH NO DATA`
 angelegt und noch nie befüllt wurde. `REFRESH MATERIALIZED VIEW
-CONCURRENTLY` verlangt bereits vorhandene Daten und schlägt auf einer
-solchen Materialized View fehl.
+CONCURRENTLY` verlangt vorhandene Daten und schlägt auf einer solchen
+Materialized View fehl.
 
 `loesung.sql` entfernt zu Beginn `tickets.team_bericht`,
 `tickets.team_aktuell` und den markierten Nachtrag und lässt sich deshalb

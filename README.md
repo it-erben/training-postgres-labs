@@ -90,10 +90,10 @@ git checkout uebung-01-loesung
 ```
 
 `AUFGABEN.md` enthält die Übersicht mit Zeiten. Jede Übung hat unter
-`uebungen/` eine Aufgabe mit demselben Aufbau: worum es geht, was der
-Startpunkt enthält, ein Schritt-für-Schritt-Teil je Datei und Methode, eine
-Tabelle mit jedem Test, dem, was er prüft, und der Bedeutung seiner
-Fehlermeldung, dazu Fallstricke und Bonus.
+`uebungen/` eine Aufgabe mit demselben Aufbau. Sie nennt, worum es geht und
+was der Startpunkt enthält, und geht dann Schritt für Schritt durch jede
+Datei und Methode. Eine Tabelle nennt zu jedem Test, was er prüft und was
+seine Fehlermeldung bedeutet. Am Ende stehen Fallstricke und Bonus.
 
 ### Aufbau
 

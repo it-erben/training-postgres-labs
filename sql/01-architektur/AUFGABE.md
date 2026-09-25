@@ -112,8 +112,8 @@ CREATE TABLE tickets.messung (
    (1 row)
    ```
 
-   B sieht den neuen Wert erst mit einer neuen Abfrage nach dem `COMMIT`
-   von A, nicht rückwirkend in der bereits gelesenen Zeile.
+   Den neuen Wert liefert erst eine Abfrage, die B nach dem `COMMIT` von A
+   startet. Ein schon gelesenes Ergebnis ändert sich rückwirkend nicht.
 
 4. Schalte `autovacuum` für `ticket` ab, damit kein automatischer Lauf die
    Messung verfälscht:
@@ -131,10 +131,9 @@ CREATE TABLE tickets.messung (
    SELECT pg_stat_force_next_flush();
    ```
 
-   `pg_stat_force_next_flush()` sorgt dafür, dass die Sitzung ihre
-   Zählerstände direkt nach dem Ende der Transaktion veröffentlicht. Lies
-   `n_dead_tup` deshalb erst in der nächsten Ausführung und halte den Wert
-   fest:
+   Mit `pg_stat_force_next_flush()` veröffentlicht die Sitzung ihre
+   Zählerstände direkt nach dem Ende der Transaktion. Lies `n_dead_tup`
+   deshalb erst in der nächsten Ausführung und halte den Wert fest:
 
    ```sql
    INSERT INTO tickets.messung (schritt, wert)
@@ -168,8 +167,8 @@ CREATE TABLE tickets.messung (
 
 5. Merke dir die aktuelle WAL-Position, aktualisiere Ticket 1 erneut und
    bilde die Differenz. Führe die drei Anweisungen einzeln aus.
-   `pg_current_wal_lsn()` liefert die geschriebene WAL-Position; das
-   `UPDATE` ist darin erst nach seinem `COMMIT` enthalten:
+   `pg_current_wal_lsn()` liefert die geschriebene WAL-Position. Das
+   `UPDATE` steckt darin erst nach seinem `COMMIT`:
 
    ```sql
    SELECT pg_current_wal_lsn() AS start_lsn;
@@ -204,28 +203,29 @@ Referenzlauf:
 ```
 
 `ctid_geaendert` muss `true` sein, `tote_tupel_nach_update` größer als 0,
-`tote_tupel_nach_vacuum` gleich 0 und `wal_bytes` größer als 0. Die genaue
-Zahl bei `tote_tupel_nach_update` und `wal_bytes` hängt vom Ausgangszustand
-des WAL und von zuvor gelaufenen Transaktionen ab und weicht von Lauf zu
-Lauf ab.
+`tote_tupel_nach_vacuum` gleich 0 und `wal_bytes` größer als 0. Die genauen
+Zahlen bei `tote_tupel_nach_update` und `wal_bytes` weichen von Lauf zu Lauf
+ab. Sie hängen vom Ausgangszustand des WAL und von vorher gelaufenen
+Transaktionen ab.
 
 ## Hinweise
 
 `n_dead_tup` in `pg_stat_user_tables` stammt aus Zählern, die eine Sitzung
-erst nach dem Ende ihrer Transaktion veröffentlicht. `pg_stat_force_next_flush()`
-erzwingt diese Veröffentlichung beim nächsten Transaktionsende, ohne auf die
-nächste automatische Gelegenheit zu warten. Stehen `UPDATE` und Abfrage in
-derselben Markierung, laufen sie als eine Transaktion, und die Abfrage liest
-noch den alten Zählerstand.
+erst nach dem Ende ihrer Transaktion veröffentlicht. Nach
+`pg_stat_force_next_flush()` veröffentlicht die Sitzung ihre Zähler gleich
+beim nächsten Transaktionsende und wartet nicht auf die nächste automatische
+Gelegenheit.
+Stehen `UPDATE` und Abfrage in derselben Markierung, laufen sie als eine
+Transaktion. Die Abfrage liest dann noch den alten Zählerstand.
 
 Autovacuum kann `n_dead_tup` schon vor deinem eigenen `VACUUM` senken, wenn
 in der Zwischenzeit ein automatischer Lauf startet. Deshalb schaltet die
 Übung `autovacuum` für `ticket` während der Messung ab und setzt es danach
-zurück. In einer produktiven Datenbank bleibt Autovacuum eingeschaltet;
-das Abschalten dient hier ausschließlich der reproduzierbaren Messung.
+zurück. In einer produktiven Datenbank bleibt Autovacuum eingeschaltet.
+Hier ist es nur abgeschaltet, damit die Messung reproduzierbar ist.
 
 `VACUUM` läuft nur außerhalb eines Transaktionsblocks. pgAdmin schickt eine
-Markierung mit mehreren Anweisungen als eine Transaktion; `VACUUM` darin
+Markierung mit mehreren Anweisungen als eine Transaktion, und `VACUUM` darin
 endet mit `ERROR: VACUUM cannot run inside a transaction block` (SQLSTATE
 `25001`). Allein markiert und bei eingeschaltetem `Auto commit` läuft es.
 
@@ -236,7 +236,7 @@ immer eine neue Zeilenversion an, auch wenn sich der gespeicherte Wert nicht
 `loesung.sql` läuft abschnittsweise: Jeder Block ab `-- Abschnitt` wird
 einzeln markiert und ausgeführt. Aufgabe 3 steht als Kommentar mit den
 Blöcken `Verbindung A` und `Verbindung B`, weil eine einzelne
-Skriptausführung keine zweite Verbindung hat. Abschnitt 1 entfernt
-`tickets.messung`; die Datei lässt sich deshalb mehrfach ausführen, und die
-Werte in `tickets.messung` können sich dabei von Lauf zu Lauf
-unterscheiden.
+Skriptausführung keine zweite Verbindung hat. Abschnitt 1 legt
+`tickets.messung` bei jedem Lauf neu an, deshalb darfst du die Datei
+mehrfach ausführen. Die Werte in `tickets.messung` können sich dabei von
+Lauf zu Lauf unterscheiden.

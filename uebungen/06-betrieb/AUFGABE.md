@@ -10,8 +10,8 @@ bevor der DBA anruft? Und wie liest sie von einem Replikat, wenn der
 Cluster eines hat?
 
 Für die erste Frage bietet PostgreSQL `LISTEN` und `NOTIFY`. Ein `NOTIFY`
-innerhalb einer Transaktion wird erst beim `COMMIT` zugestellt, und gar
-nicht bei `ROLLBACK`. Empfänger brauchen eine eigene Verbindung, die nicht
+innerhalb einer Transaktion wird erst beim `COMMIT` zugestellt, bei einem
+`ROLLBACK` gar nicht. Empfänger brauchen eine eigene Verbindung, die nicht
 durch den Pool wandert, und die Anwendung muss damit rechnen, dass diese
 Verbindung abbricht.
 
@@ -77,9 +77,10 @@ await using var tx = await conn.BeginTransactionAsync(ct);
 await tx.CommitAsync(ct);
 ```
 
-`pg_notify` ist die Funktionsform von `NOTIFY`; sie nimmt Parameter,
-`NOTIFY kanal, 'text'` nicht. Der Payload ist Text, deshalb die
-Buchungsnummer als Zeichenkette.
+`pg_notify` ist die Funktionsform von `NOTIFY` und nimmt Kanal und Payload
+als Parameter, während `NOTIFY kanal, 'text'` beides fest im SQL-Text
+erwartet. Der Payload ist Text, deshalb die Buchungsnummer als
+Zeichenkette.
 
 Der Hook `BeforeCommit` läuft nach dem `NOTIFY` und vor dem `COMMIT`. Der
 Test `Notification_does_not_arrive_before_commit` wartet im Hook 500 ms
@@ -187,8 +188,8 @@ Cluster ein Replikat hat, sagt der Trainer.
 - `NOTIFY` liefert nichts nach, was vor dem `LISTEN` gesendet wurde. Der
   Melder muss laufen, bevor eine Rückgabe erfolgt; die Tests warten darauf,
   dass seine Verbindung in `pg_stat_activity` erscheint.
-- Der Payload ist auf 8000 Bytes begrenzt. Das Muster ist: Benachrichtigung
-  weckt, die Tabelle hat den Zustand.
+- Der Payload ist auf 8000 Bytes begrenzt. Die Benachrichtigung weckt den
+  Empfänger nur; den Zustand liest er aus der Tabelle.
 - Ohne `Pooling = false` öffnet der Melder eine Poolverbindung; nach dem
   `LISTEN` wäre sie beim nächsten Kommando eine andere. Der Test findet
   dann zwei Verbindungen oder keine mit `LISTEN`.

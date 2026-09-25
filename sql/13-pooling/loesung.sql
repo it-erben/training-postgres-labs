@@ -3,7 +3,7 @@
 -- der eigenen Sitzung zurück. Aufgabe 2 braucht zusätzliche Query Tools,
 -- Aufgabe 4 und 5 zwei gleichzeitige Verbindungen. Die Schritte dafür
 -- stehen als Kommentar, markiert mit -- Verbindung A und -- Verbindung B,
--- weil eine Skriptausführung nur eine Verbindung besitzt.
+-- weil eine Skriptausführung nur eine Verbindung hat.
 RESET idle_in_transaction_session_timeout;
 
 -- Aufgabe 1: Grenze und eigene Verbindungen

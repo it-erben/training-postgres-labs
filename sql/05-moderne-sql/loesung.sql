@@ -59,7 +59,7 @@ SELECT id AS ticket_id, subject, (metadata->>'csat_score')::int AS csat_score
 FROM ticket
 WHERE metadata @? '$.csat_score ? (@ == 5)';
 
--- Aufgabe 5: jüngstes offenes Ticket je Team, nicht gespeichert
+-- Aufgabe 5: jüngstes offenes Ticket je Team, ohne Ergebnistabelle
 SELECT team.team, jt.ticket_id, jt.created_at
 FROM (SELECT DISTINCT team FROM agent) team
 CROSS JOIN LATERAL (
