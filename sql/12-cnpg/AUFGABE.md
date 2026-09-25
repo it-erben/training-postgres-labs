@@ -3,7 +3,7 @@
 ## Ziel
 
 Das Ticketsystem liegt in deinem eigenen CloudNativePG-Cluster mit einer
-Primärinstanz und Replikaten. Beide unterscheidest du mit SQL. Dann
+Primärinstanz und einem Replikat. Beide unterscheidest du mit SQL. Dann
 prüfst du, ob deine Verbindung verschlüsselt ist, und beobachtest, wann eine
 Zeile vom RW-Server auf dem RO-Server ankommt. Zum Schluss liest du den
 Status deines Clusters und begründest für drei Anwendungsfälle, welchen
@@ -31,8 +31,9 @@ DROP TABLE IF EXISTS tickets.read_test;
 ```
 
 Für Aufgabe 4 brauchst du entweder `kubectl` mit Leserechten im Namespace
-`training-postgres` oder Zugang zu Headlamp. Die Kursleitung sagt dir,
-welcher Weg in deiner Umgebung offen ist.
+`training-postgres` oder Zugang zu Headlamp. In der Kursumgebung stehen
+beide Wege offen; `kubectl` läuft mit dem Kontext `awe-d-pinniped` wie in
+[Übung 0](../00-einrichtung/AUFGABE.md).
 
 ## Aufgaben
 

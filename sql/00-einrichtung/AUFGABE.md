@@ -10,16 +10,18 @@ Kommentare als Baum.
 ## Ausgangsstand
 
 Du hast eine eigene Servergruppe im pgAdmin mit einem RW-Server, Datenbank
-`app`, Rolle `app`. Das Passwort steht im Secret `<cluster>-app` unter dem
-Schlüssel `password`:
+`app`, Rolle `app`. Das Passwort steht im Secret `<cluster>-app-user` unter
+dem Schlüssel `password`. `<cluster>` ist der Name deines Clusters nach dem
+Muster `<name>-pg`. `kubectl` meldet sich über Pinniped per SSO an, der
+Kontext heißt `awe-d-pinniped`:
 
 ```bash
-kubectl -n training-postgres get secret <cluster>-app \
-  -o jsonpath='{.data.password}' | base64 -d
+kubectl --context awe-d-pinniped -n training-postgres \
+  get secret <cluster>-app-user -o jsonpath='{.data.password}' | base64 -d
 ```
 
 Ohne `kubectl` findest du das Secret in Headlamp unter `Configuration`,
-`Secrets`, `<cluster>-app`.
+`Secrets`, `<cluster>-app-user`.
 
 ## Aufgaben
 

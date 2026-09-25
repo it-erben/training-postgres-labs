@@ -169,8 +169,16 @@ return NpgsqlDataSource.Create(settings.ConnectionString);
 `prefer-standby` nimmt ein Replikat, wenn eines antwortet, sonst den
 Primärserver. Der Test liest `pg_is_in_recovery()` über diese DataSource
 und erwartet `true`. Er läuft nur, wenn `RENTAL_CONNECTION_RO` gesetzt
-ist; sonst wird er übersprungen und sagt das in der Ausgabe. Ob der
-Cluster ein Replikat hat, sagt der Trainer.
+ist; sonst wird er übersprungen und sagt das in der Ausgabe. Jeder
+Kurscluster hat ein Replikat. Aus dem code-server lautet der Host in
+`RENTAL_CONNECTION_RO`:
+
+```text
+Host=<lb-host-ro>,<cluster>-rw.awe-d.sutorbank.cloud
+```
+
+`<lb-host-ro>` nennt die Kursleitung. Datenbank, Rolle, Passwort und
+`SSL Mode` sind dieselben wie in Übung 0.
 
 ## Die Tests im Detail
 

@@ -38,14 +38,17 @@ Die Verbindungszeichenfolge kommt aus der Umgebungsvariablen
 `RENTAL_CONNECTION`. Zugangsdaten stehen nie im Repository.
 
 ```sh
-export RENTAL_CONNECTION='Host=<cluster>-rw;Port=5432;Database=<datenbank>;Username=<rolle>;Password=<passwort>'
+export RENTAL_CONNECTION='Host=<cluster>-rw.awe-d.sutorbank.cloud;Database=app;'\
+'Username=app;Password=<passwort>;'\
+'SSL Mode=VerifyCA;Root Certificate=/home/coder/sutor-k8s-ca.crt'
 dotnet test --filter-trait Exercise=00
 ```
 
-Bei CloudNativePG liegen Host, Datenbank, Rolle und Passwort im Secret der
-Datenbank; Übung 0 beschreibt den Weg. Für Übung 6 kann zusätzlich
-`RENTAL_CONNECTION_RO` auf den Dienst `<cluster>-ro` zeigen; ohne diese
-Variable wird der betroffene Test übersprungen.
+Das Passwort steht im Secret `<cluster>-app-user`. Übung 0 beschreibt den
+Weg dorthin, die Hostnamen für den code-server und die Wahl von
+`SSL Mode`. Für Übung 6 kann zusätzlich `RENTAL_CONNECTION_RO` gesetzt
+werden; den Host dafür nennt Übung 6. Ohne diese Variable wird der
+betroffene Test übersprungen.
 
 ### Ablauf
 
