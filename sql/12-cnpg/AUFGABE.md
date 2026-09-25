@@ -13,7 +13,8 @@ welchen Dienst die Anwendung verwenden soll.
 
 Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
-Tool mit `Auto commit` an und `Auto rollback on error` aus.
+Tool mit `Auto commit` an und `Auto rollback on error` aus. Jeder Codeblock
+ist eine Ausführung, wie in Übung 0 beschrieben.
 
 In deiner Servergruppe im pgAdmin gibt es zwei Server auf denselben
 Cluster:
@@ -78,7 +79,7 @@ beide Wege offen; `kubectl` läuft mit dem Kontext `awe-d-pinniped` wie in
    deiner Sitzung.
 
 3. Lege auf dem RW-Server die Tabelle `tickets.read_test` an und schreibe
-   eine Zeile:
+   eine Zeile. Beide Anweisungen laufen als eine Ausführung:
 
    ```sql
    CREATE TABLE tickets.read_test (
