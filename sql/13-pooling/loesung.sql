@@ -57,7 +57,8 @@ FROM pg_stat_activity;
 -- SET application_name = 'exercise13_a';
 -- BEGIN;
 -- SELECT count(*) AS open_tickets FROM tickets.ticket WHERE status = 'open';
--- -- 13144; die Transaktion bleibt offen.
+-- -- 13144, nach Übung 8 mit deren Nachtrag 13145; die Transaktion
+-- -- bleibt offen.
 --
 -- Verbindung B:
 -- SELECT application_name, state,

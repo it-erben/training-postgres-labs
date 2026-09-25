@@ -43,9 +43,10 @@ FROM tickets.read_test;
 -- SELECT pg_last_wal_replay_lsn() AS replayed_up_to,
 --        pg_last_xact_replay_timestamp() AS last_replayed_xact;
 -- -- last_replayed_xact ist der Commit-Zeitpunkt auf der Primärinstanz,
--- -- kurz nach written_at; im Referenzlauf lag weniger als eine
--- -- Millisekunde dazwischen. Die Zeile ist sichtbar, sobald
--- -- replayed_up_to die wal_position_rw erreicht hat.
+-- -- kurz nach written_at; auf trainer-pg lagen 3 bis 7 Millisekunden
+-- -- dazwischen, einschließlich der Dauer von CREATE TABLE und INSERT. Die
+-- -- Zeile ist sichtbar, sobald replayed_up_to die wal_position_rw
+-- -- erreicht hat.
 --
 -- RO-Server, Schreibversuch
 -- INSERT INTO tickets.read_test (note) VALUES ('geschrieben auf RO');
@@ -63,6 +64,18 @@ FROM tickets.read_test;
 --   im Status die Felder phase, currentPrimary, instances und readyInstances.
 --   Die Adresse je Pod steht unter Workloads > Pods in der Spalte IP.
 -- Erwartet: Phase "Cluster in healthy state", READY gleich INSTANCES.
+--
+-- Einstellungen der Primärinstanz (RW-Server), Vergleich mit der Tabelle
+-- "Stand der Kursumgebung" in AUFGABE.md
+SELECT name, setting, unit, source
+FROM pg_settings
+WHERE name IN ('server_version', 'max_connections', 'shared_buffers',
+               'work_mem', 'maintenance_work_mem', 'max_wal_size',
+               'wal_level', 'synchronous_commit',
+               'synchronous_standby_names', 'archive_mode', 'ssl',
+               'io_method', 'default_transaction_isolation', 'TimeZone',
+               'idle_in_transaction_session_timeout', 'statement_timeout')
+ORDER BY name;
 
 -- Aufgabe 5: Dienstwahl
 -- Ticket übernehmen:            <cluster>-rw. Die Anwendung schreibt.

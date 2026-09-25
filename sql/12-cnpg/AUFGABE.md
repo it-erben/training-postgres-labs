@@ -5,9 +5,9 @@
 Das Ticketsystem liegt in deinem eigenen CloudNativePG-Cluster mit einer
 Primärinstanz und einem Replikat. Beide unterscheidest du mit SQL. Dann
 prüfst du, ob deine Verbindung verschlüsselt ist, und beobachtest, wann eine
-Zeile vom RW-Server auf dem RO-Server ankommt. Zum Schluss liest du den
-Status deines Clusters und begründest für drei Anwendungsfälle, welchen
-Dienst die Anwendung verwenden soll.
+Zeile vom RW-Server auf dem RO-Server ankommt. Zum Schluss liest du Status
+und Einstellungen deines Clusters und begründest für drei Anwendungsfälle,
+welchen Dienst die Anwendung verwenden soll.
 
 ## Ausgangsstand
 
@@ -51,20 +51,26 @@ beide Wege offen; `kubectl` läuft mit dem Kontext `awe-d-pinniped` wie in
    an dem die Verbindung endet. Beide Server zeigen verschiedene Adressen,
    obwohl sie zum selben Cluster gehören.
 
-   Referenzlauf mit einer lokalen Primärinstanz und einem Replikat
-   (PostgreSQL 18.6, ohne CloudNativePG), zuerst RW, dann RO:
+   Referenzlauf auf dem Kurscluster `trainer-pg` am 25.09.2026, zuerst RW,
+   dann RO. Die Verbindung lief dort über `kubectl port-forward`, deshalb
+   zeigt `server_addr` auf beiden Servern die Loopback-Adresse im Pod:
 
    ```text
-    is_replica |  server_addr  | read_only 
-   ------------+---------------+-----------
-    f          | 192.168.164.2 | off
+    is_replica | server_addr | read_only 
+   ------------+-------------+-----------
+    f          | 127.0.0.1   | off
    (1 row)
 
-    is_replica |  server_addr  | read_only 
-   ------------+---------------+-----------
-    t          | 192.168.164.3 | on
+    is_replica | server_addr | read_only 
+   ------------+-------------+-----------
+    t          | 127.0.0.1   | on
    (1 row)
    ```
+
+   Im pgAdmin steht in `server_addr` die Adresse des Pods. Für `trainer-pg`
+   nannte `kubectl get pods -o wide` am selben Tag `100.64.3.140` für die
+   Primärinstanz `trainer-pg-1` und `100.64.1.16` für das Replikat
+   `trainer-pg-2`.
 
 2. Lies aus `pg_stat_ssl` ab, ob deine eigene Verbindung verschlüsselt ist,
    mit welcher TLS-Version und mit welchem Verfahren. `pg_stat_ssl` hat
@@ -101,6 +107,70 @@ beide Wege offen; `kubectl` läuft mit dem Kontext `awe-d-pinniped` wie in
    RW-Server gezeigt hat? Mit `-o wide` zeigt `kubectl` die Adresse jedes
    Pods; in Headlamp steht sie unter `Workloads`, `Pods` in der Spalte `IP`.
 
+   Referenzlauf für `trainer-pg` am 25.09.2026, die Pod-Liste mit
+   `-o wide` und ohne die Spalten zum Knoten:
+
+   ```text
+   NAME         AGE   INSTANCES   READY   STATUS                     PRIMARY
+   trainer-pg   24h   2           2       Cluster in healthy state   trainer-pg-1
+
+   NAME           READY   STATUS    RESTARTS      AGE    IP             ROLE
+   trainer-pg-1   2/2     Running   0             108m   100.64.3.140   primary
+   trainer-pg-2   2/2     Running   1 (99m ago)   24h    100.64.1.16    replica
+   ```
+
+   `READY 2/2` zählt zwei Container je Pod: PostgreSQL und das Plugin, das
+   WAL und Backups in den Objektspeicher schreibt. Bei den Clustern der
+   Teilnehmenden war am selben Tag `<cluster>-2` die Primärinstanz.
+
+   Lies zum Schluss die Einstellungen deiner Primärinstanz auf dem
+   RW-Server:
+
+   ```sql
+   SELECT name, setting, unit, source
+   FROM pg_settings
+   WHERE name IN ('server_version', 'max_connections', 'shared_buffers',
+                  'work_mem', 'maintenance_work_mem', 'max_wal_size',
+                  'wal_level', 'synchronous_commit',
+                  'synchronous_standby_names', 'archive_mode', 'ssl',
+                  'io_method', 'default_transaction_isolation', 'TimeZone',
+                  'idle_in_transaction_session_timeout', 'statement_timeout')
+   ORDER BY name;
+   ```
+
+   Vergleiche das Ergebnis mit dem Stand der Kursumgebung. `source` zeigt,
+   woher ein Wert kommt: `configuration file` stammt aus der
+   Cluster-Ressource, `default` ist der Standard von PostgreSQL.
+
+   Stand der Kursumgebung am 25.09.2026, gelesen auf `trainer-pg` und
+   stichprobenartig auf einem Cluster der Teilnehmenden. Die ersten vier
+   Zeilen zeigt `kubectl`: `get cluster`, die Annotation
+   `cnpg.io/operatorVersion` in `describe pod <cluster>-1`, `get pvc` und
+   `get poolers`. Die übrigen liefert die Abfrage oben:
+
+   | Eigenschaft                           | Wert                           |
+   | ------------------------------------- | ------------------------------ |
+   | Instanzen                             | 2: Primärinstanz und Replikat  |
+   | CloudNativePG-Operator                | 1.30.0                         |
+   | Speicher                              | 8Gi je Instanz, samt WAL       |
+   | Pooler                                | keiner                         |
+   | `server_version`                      | 18.6                           |
+   | `max_connections`                     | 100, davon 3 für Superuser     |
+   | `shared_buffers`                      | 4096 × 8kB = 32 MB             |
+   | `work_mem`                            | 4096 kB                        |
+   | `maintenance_work_mem`                | 65536 kB                       |
+   | `max_wal_size`                        | 1024 MB                        |
+   | `wal_level`                           | `logical`                      |
+   | `synchronous_commit`                  | `on`                           |
+   | `synchronous_standby_names`           | leer, also asynchron           |
+   | `archive_mode`                        | `on`, Archiv im Objektspeicher |
+   | `ssl`                                 | `on`, nur TLS 1.3              |
+   | `io_method`                           | `worker`                       |
+   | `default_transaction_isolation`       | `read committed`               |
+   | `TimeZone`                            | `Etc/UTC`                      |
+   | `idle_in_transaction_session_timeout` | 0, keine Grenze                |
+   | `statement_timeout`                   | 0, keine Grenze                |
+
 5. Wähle für drei Anwendungsfälle zwischen `<cluster>-rw`, `<cluster>-ro`
    und `<cluster>-r` und begründe die Wahl in einem Satz:
 
@@ -117,8 +187,7 @@ SELECT pg_is_in_recovery() AS is_replica,
        (SELECT count(*) FROM tickets.read_test) AS row_count;
 ```
 
-Referenzlauf mit einem lokalen Replikat (PostgreSQL 18.6, ohne
-CloudNativePG):
+Referenzlauf auf `trainer-pg`:
 
 ```text
  is_replica | row_count 
@@ -148,12 +217,16 @@ ist jede Transaktion schreibgeschützt; `transaction_read_only` steht dort
 auf `on`.
 
 `pg_last_xact_replay_timestamp()` ist der Commit-Zeitpunkt der zuletzt
-eingespielten Transaktion, gemessen auf der Primärinstanz. Im Referenzlauf
-lag er weniger als eine Millisekunde nach `written_at`. Der Abstand
+eingespielten Transaktion, gemessen auf der Primärinstanz. Auf `trainer-pg`
+lag er 3 bis 7 Millisekunden nach `written_at`. `written_at` ist `now()`,
+der Beginn der Transaktion; der Abstand enthält deshalb auch die Dauer von
+`CREATE TABLE` und `INSERT`. Der Abstand
 `now() - pg_last_xact_replay_timestamp()` wächst weiter, wenn niemand
 schreibt. Er misst dann nur die Zeit seit dem letzten Commit.
 
 Dass die Zeile auf dem RO-Server sofort zu sehen war, garantiert nichts.
+Auf `trainer-pg` lieferte eine Abfrage, die wenige Millisekunden nach dem
+`COMMIT` auf dem RO-Server lief, noch den Stand davor.
 CloudNativePG repliziert ohne weitere Konfiguration asynchron:
 Der `COMMIT` auf der Primärinstanz wartet nicht auf das Replikat. Unter
 Last kann eine gerade geschriebene Zeile auf `-ro` für kurze Zeit fehlen.

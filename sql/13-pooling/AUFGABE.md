@@ -38,6 +38,23 @@ die übrigen Query Tools nach Aufgabe 3.
    FROM pg_stat_activity;
    ```
 
+   Referenzlauf auf dem Kurscluster `trainer-pg` am 25.09.2026 mit einer
+   einzigen Sitzung:
+
+   ```text
+                 name              | setting 
+   --------------------------------+---------
+    max_connections                | 100
+    reserved_connections           | 0
+    superuser_reserved_connections | 3
+   (3 rows)
+
+    max_connections | own_sessions 
+   -----------------+--------------
+                100 |            1
+   (1 row)
+   ```
+
    Notiere `own_sessions`. `pg_stat_activity` hat eine Zeile je Serverprozess.
    `usename = current_user` wählt die Verbindungen deiner Rolle `app`,
    gleich aus welchem Werkzeug.
@@ -72,6 +89,15 @@ die übrigen Query Tools nach Aufgabe 3.
    FROM pg_stat_activity;
    ```
 
+   Referenzlauf auf `trainer-pg` mit vier eigenen Sitzungen:
+
+   ```text
+    app_demand | rolling_update_demand | slots_without_reserve | already_used 
+   ------------+-----------------------+-----------------------+--------------
+            60 |                    80 |                    97 |            4
+   (1 row)
+   ```
+
    `already_used` zählt alle Sitzungen mit Rolle und Datenbank, auch
    fremde, denn die Plätze ohne Reserve teilen sich deine Werkzeuge, die
    Anwendung und die Sitzungen, die CloudNativePG selbst öffnet. WAL-Sender
@@ -101,13 +127,13 @@ die übrigen Query Tools nach Aufgabe 3.
      AND usename = current_user;
    ```
 
-   Referenzlauf mit zwei psql-Sitzungen (PostgreSQL 18.6), zwei Sekunden
-   nach dem `SELECT` in A:
+   Referenzlauf auf `trainer-pg` mit zwei Sitzungen, zwei Sekunden nach
+   dem `SELECT` in A:
 
    ```text
-    application_name |        state        |    xact_age     |    idle_for    
-   ------------------+---------------------+-----------------+----------------
-    exercise13_a     | idle in transaction | 00:00:02.002992 | 00:00:02.00152
+    application_name |        state        |    xact_age     |    idle_for     
+   ------------------+---------------------+-----------------+-----------------
+    exercise13_a     | idle in transaction | 00:00:02.137913 | 00:00:02.025036
    (1 row)
    ```
 
@@ -146,8 +172,7 @@ SELECT current_setting('max_connections')::int AS max_connections,
 FROM pg_stat_activity;
 ```
 
-Referenzlauf mit psql (PostgreSQL 18.6, lokal), vor Aufgabe 2 mit einer
-Sitzung:
+Referenzlauf auf `trainer-pg`, vor Aufgabe 2 mit einer Sitzung:
 
 ```text
  max_connections | own_sessions 
