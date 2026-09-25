@@ -9,7 +9,8 @@ ohne zusätzliche Werkzeuge im pgAdmin.
 Die Übungen laufen im pgAdmin Query Tool gegen die eigene `app`-Datenbank
 im Schema `tickets`. `setup.sql` legt das Schema mit dem Datenbestand an;
 ein erneuter Lauf löscht `tickets` samt aller Übungsobjekte darin und baut
-es neu auf. Andere Schemas bleiben dabei unberührt.
+es neu auf. Andere Schemas bleiben dabei unberührt. `soundcheck.sql` prüft
+in einer Abfrage Verbindung, Rechte und Datenbestand.
 
 Ein Codeblock ist eine Ausführung: Block vollständig markieren und mit F5
 ausführen, erst danach der nächste Block. Enthält ein Block mehrere
@@ -34,7 +35,7 @@ Die Nummer einer Übung ist die Nummer des Kursmoduls, zu dem sie gehört.
 
 | Nr. | Übung                                                  |
 | --- | ------------------------------------------------------ |
-| 00  | [Einrichtung](00-einrichtung/AUFGABE.md)               |
+| 00  | [Soundcheck](00-einrichtung/AUFGABE.md)                |
 | 01  | [Architektur](01-architektur/AUFGABE.md)               |
 | 02  | [Indizes und EXPLAIN](02-explain/AUFGABE.md)           |
 | 03  | [Umstieg von Oracle](03-oracle/AUFGABE.md)             |
