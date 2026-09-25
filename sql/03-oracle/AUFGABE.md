@@ -191,7 +191,7 @@ Referenzlauf:
 Aufgabe 1 zählt mit `count(*) FILTER (WHERE ...)`, also Zeilen, für die
 die Bedingung zutrifft. `value = ''` ist für die NULL-Zeile nicht wahr,
 deshalb zählt nur `value IS NULL` sie mit. `count(value)` ergäbe 3, weil
-`count(spalte)` NULL-Werte überspringt. Die Tabelle ist eigens angelegt,
+`count(column)` NULL-Werte überspringt. Die Tabelle ist eigens angelegt,
 weil `subject` in `tickets.ticket` `NOT NULL` ist und dort keine NULL-Zeile
 eingefügt werden kann. In einer Oracle-`VARCHAR2`-Spalte ist die leere
 Zeichenkette selbst NULL. Das betrifft jede Migration mit Textspalten aus
