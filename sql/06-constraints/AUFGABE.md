@@ -2,10 +2,12 @@
 
 ## Ziel
 
-Du validierst eine nachträglich angelegte Prüfregel, ohne Schreibzugriffe
-zu blockieren. Danach findest du einen Fremdschlüssel ohne unterstützenden
-Index und baust mit einem Exclusion Constraint einen Bereitschaftsplan ohne
-überlappende Zeiträume. Zum Schluss beobachtest du, wann ein aufschiebbarer
+Du legst eine Prüfregel nachträglich mit `NOT VALID` an, was die Tabelle
+nur kurz mit `ACCESS EXCLUSIVE` sperrt. Danach validierst du sie unter
+`SHARE UPDATE EXCLUSIVE`, ohne Lesen und Schreiben zu blockieren. Außerdem
+findest du einen Fremdschlüssel ohne unterstützenden Index und baust mit
+einem Exclusion Constraint einen Bereitschaftsplan ohne überlappende
+Zeiträume. Zum Schluss beobachtest du, wann ein aufschiebbarer
 Fremdschlüssel geprüft wird.
 
 ## Ausgangsstand
