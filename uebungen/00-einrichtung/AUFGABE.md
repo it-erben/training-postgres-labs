@@ -59,10 +59,13 @@ einschließlich der Primärinstanz). Der code-server läuft in einem anderen
 Kubernetes-Cluster und löst diese Namen nicht auf. Er erreicht die
 Datenbank über LoadBalancer-Namen:
 
-| Zweck                       | Host                                  |
-| --------------------------- | ------------------------------------- |
-| Alle Übungen, Primärinstanz | `<cluster>-rw.awe-d.sutorbank.cloud`  |
-| Übung 6, Lesen vom Replikat | `<lb-host-ro>`, nennt die Kursleitung |
+| Zweck                       | Host                                 |
+| --------------------------- | ------------------------------------ |
+| Alle Übungen, Primärinstanz | `<cluster>-rw.awe-d.sutorbank.cloud` |
+| Übung 6, Lesen vom Replikat | `<cluster>-ro.awe-d.sutorbank.cloud` |
+
+Beide LoadBalancer nehmen nur Verbindungen aus dem Netz `10.111.10.0/24`
+an.
 
 Das Serverzertifikat nennt nur die internen Dienstnamen, den
 LoadBalancer-Namen nicht. Daraus ergibt sich die Einstellung für

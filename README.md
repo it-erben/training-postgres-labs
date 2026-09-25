@@ -57,9 +57,9 @@ git checkout -b meine-uebung-01 uebung-01-start
 dotnet test --filter-trait Exercise=01
 ```
 
-Die Tags `uebung-NN-start` und `uebung-NN-loesung` enthalten `sql/` nicht;
-nach dem Wechsel auf einen Übungsbranch fehlt die SQL-Serie im
-Arbeitsverzeichnis. Ein zweiter Worktree hält `main` mit der SQL-Serie
+Maßgeblich für die Aufgabentexte unter `uebungen/` und die SQL-Serie unter
+`sql/` ist der Stand von `main`. Ein Übungsbranch zeigt beide im Stand
+seines Tags, je nach Tag auch ohne `sql/`. Ein zweiter Worktree hält `main`
 daneben bereit. Er lässt sich anlegen, sobald `main` nicht mehr im ersten
 Arbeitsverzeichnis ausgecheckt ist, also nach dem ersten `git checkout -b`:
 

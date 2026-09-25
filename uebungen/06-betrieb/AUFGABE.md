@@ -174,22 +174,23 @@ Kurscluster hat ein Replikat. Aus dem code-server lautet der Host in
 `RENTAL_CONNECTION_RO`:
 
 ```text
-Host=<lb-host-ro>,<cluster>-rw.awe-d.sutorbank.cloud
+Host=<cluster>-ro.awe-d.sutorbank.cloud,<cluster>-rw.awe-d.sutorbank.cloud
 ```
 
-`<lb-host-ro>` nennt die Kursleitung. Datenbank, Rolle, Passwort und
-`SSL Mode` sind dieselben wie in Übung 0.
+Datenbank, Rolle, Passwort und `SSL Mode` sind dieselben wie in Übung 0.
+Beide Hosts gehören in die Zeichenfolge. Mit nur einem Host lehnt Npgsql
+`TargetSessionAttributes` ab.
 
 ## Die Tests im Detail
 
-| Test                                                  | Was er prüft                                                                                      | Wenn er rot ist                                                             |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `Return_sends_notification_after_commit`              | Lauscher empfängt die Buchungsnummer, `returned_at` ist gesetzt                                   | `pg_notify` fehlt oder anderer Kanal, Payload nicht die ID                  |
-| `Notification_does_not_arrive_before_commit`          | Im Hook nach 500 ms nichts empfangen, nach dem Commit doch                                        | `NOTIFY` außerhalb der Transaktion, oder Hook nach dem Commit aufgerufen    |
-| `Rolled_back_return_sends_nothing`                    | Hook wirft; kein Empfang, `returned_at` bleibt NULL, keine offene Transaktion                     | Commit vor dem Hook, oder Ausnahme abgefangen                               |
-| `Listener_uses_a_dedicated_connection_with_keepalive` | `KeepAlive > 0`, Application Name, genau eine Verbindung `rental_listener`, Empfang innerhalb 5 s | Zeichenfolge unverändert, Pooling an (zwei Verbindungen), `WaitAsync` fehlt |
-| `Diagnostics_lists_own_connections_with_state`        | Melder `idle`, Anwendung `active` (die Diagnoseabfrage selbst), keine Testverbindungen            | `LIKE 'rental%'` liefert auch `rental_test`                                 |
-| `Read_queries_prefer_the_replica`                     | `pg_is_in_recovery()` ist `true` über die Lesequelle                                              | `TargetSessionAttributes` fehlt; ohne `RENTAL_CONNECTION_RO` übersprungen   |
+| Test                                                  | Was er prüft                                                                                      | Wenn er rot ist                                                                                                                                                                          |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Return_sends_notification_after_commit`              | Lauscher empfängt die Buchungsnummer, `returned_at` ist gesetzt                                   | `pg_notify` fehlt oder anderer Kanal, Payload nicht die ID                                                                                                                               |
+| `Notification_does_not_arrive_before_commit`          | Im Hook nach 500 ms nichts empfangen, nach dem Commit doch                                        | `NOTIFY` außerhalb der Transaktion, oder Hook nach dem Commit aufgerufen                                                                                                                 |
+| `Rolled_back_return_sends_nothing`                    | Hook wirft; kein Empfang, `returned_at` bleibt NULL, keine offene Transaktion                     | Commit vor dem Hook, oder Ausnahme abgefangen                                                                                                                                            |
+| `Listener_uses_a_dedicated_connection_with_keepalive` | `KeepAlive > 0`, Application Name, genau eine Verbindung `rental_listener`, Empfang innerhalb 5 s | Zeichenfolge unverändert, Pooling an (zwei Verbindungen), `WaitAsync` fehlt                                                                                                              |
+| `Diagnostics_lists_own_connections_with_state`        | Melder `idle`, Anwendung `active` (die Diagnoseabfrage selbst), keine Testverbindungen            | `LIKE 'rental%'` liefert auch `rental_test`                                                                                                                                              |
+| `Read_queries_prefer_the_replica`                     | `pg_is_in_recovery()` ist `true` über die Lesequelle                                              | `TargetSessionAttributes` fehlt; `NotSupportedException` mit `only supported with multiple hosts`: `RENTAL_CONNECTION_RO` nennt nur einen Host; ohne `RENTAL_CONNECTION_RO` übersprungen |
 
 ## Fallstricke
 
