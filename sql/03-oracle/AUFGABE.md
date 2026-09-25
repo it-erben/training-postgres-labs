@@ -14,7 +14,8 @@ Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Arbeite im Query
 Tool mit `Auto commit` an und `Auto rollback on error` aus. Aufgabe 4 legt
 absichtlich einen Fehlerzustand an; mit eingeschaltetem Auto rollback würde
-pgAdmin die gesamte Transaktion vorzeitig zurückrollen.
+pgAdmin die gesamte Transaktion vorzeitig zurückrollen. Führe jeden
+Codeblock für sich aus: markieren, F5, dann der nächste Block.
 
 Lege zu Beginn `tickets.pruefung` an. Sie hält die Antworten der fünf
 Aufgaben fest:
@@ -74,15 +75,19 @@ CREATE TABLE tickets.migrationstext (
    ```
 
 3. Lege innerhalb einer Transaktion eine Tabelle an, füge eine Zeile ein und
-   rolle beides zurück. Prüfe danach mit `to_regclass`, ob die Tabelle noch
-   existiert:
+   rolle beides zurück. Markiere dafür nur diesen Block: `ROLLBACK` nimmt
+   alles zurück, was in derselben Markierung davor steht.
 
    ```sql
    BEGIN;
    CREATE TABLE tickets.ddl_test (id integer PRIMARY KEY);
    INSERT INTO tickets.ddl_test VALUES (1);
    ROLLBACK;
+   ```
 
+   Prüfe danach mit `to_regclass`, ob die Tabelle noch existiert:
+
+   ```sql
    INSERT INTO tickets.pruefung (nr, ergebnis)
    VALUES (3, 'objekt_entfernt=' || (to_regclass('tickets.ddl_test') IS NULL)::text);
    ```
@@ -90,7 +95,7 @@ CREATE TABLE tickets.migrationstext (
 4. Lege `tickets.buchungstest` an und löse einen Fehler in einer laufenden
    Transaktion aus. Beobachte den SQLSTATE des Fehlers und den SQLSTATE der
    danach folgenden Anweisung, bevor du mit `ROLLBACK TO SAVEPOINT`
-   fortsetzt:
+   fortsetzt. Tabelle anlegen, Transaktion und Savepoint öffnen:
 
    ```sql
    CREATE TABLE tickets.buchungstest (
@@ -101,11 +106,18 @@ CREATE TABLE tickets.migrationstext (
    BEGIN;
    INSERT INTO tickets.buchungstest VALUES (1, 10.00);
    SAVEPOINT vor_fehler;
+   ```
+
+   Führe die beiden nächsten Anweisungen einzeln aus. Ein Fehler beendet die
+   Ausführung einer Markierung; eine zweite Anweisung darin würde gar nicht
+   mehr laufen.
+
+   ```sql
    INSERT INTO tickets.buchungstest VALUES (1, 20.00);
+   ```
+
+   ```sql
    SELECT count(*) FROM tickets.buchungstest;
-   ROLLBACK TO SAVEPOINT vor_fehler;
-   INSERT INTO tickets.buchungstest VALUES (2, 30.00);
-   COMMIT;
    ```
 
    Die zweite `INSERT`-Anweisung verletzt den Primärschlüssel: SQLSTATE
@@ -113,7 +125,15 @@ CREATE TABLE tickets.migrationstext (
    fehlgeschlagenen Transaktion und liefert deshalb SQLSTATE `25P02`, ohne
    selbst einen inhaltlichen Fehler zu haben. Erst `ROLLBACK TO SAVEPOINT`
    hebt den Fehlerzustand auf; die Einfügung vor dem Savepoint bleibt dabei
-   erhalten. Schreibe den Endstand nach `tickets.pruefung`:
+   erhalten:
+
+   ```sql
+   ROLLBACK TO SAVEPOINT vor_fehler;
+   INSERT INTO tickets.buchungstest VALUES (2, 30.00);
+   COMMIT;
+   ```
+
+   Schreibe den Endstand nach `tickets.pruefung`:
 
    ```sql
    INSERT INTO tickets.pruefung (nr, ergebnis)
@@ -128,7 +148,12 @@ CREATE TABLE tickets.migrationstext (
    ```sql
    CREATE TABLE tickets."Kunde" (id integer PRIMARY KEY, name text);
    INSERT INTO tickets."Kunde" VALUES (1, 'Muster GmbH');
+   ```
 
+   Führe die Abfrage in einer eigenen Ausführung aus. In derselben
+   Markierung würde ihr Fehler auch das `CREATE TABLE` zurückrollen.
+
+   ```sql
    SELECT * FROM tickets.kunde;
    ```
 
@@ -194,6 +219,9 @@ Schreibweise, verlangt danach aber bei jedem Zugriff genau diese
 Schreibweise in Anführungszeichen. Der Name `kunde` bezeichnet ein anderes,
 nicht vorhandenes Objekt.
 
-`loesung.sql` entfernt zu Beginn `tickets.pruefung`, `tickets.migrationstext`,
-`tickets.ddl_test`, `tickets.buchungstest` und `tickets."Kunde"` und lässt
-sich deshalb mehrfach ausführen.
+`loesung.sql` läuft abschnittsweise: Jeder Block ab `-- Abschnitt` wird
+einzeln markiert und ausgeführt. Die drei Anweisungen mit erwartetem Fehler
+stehen dort als Kommentar mit ihrem SQLSTATE. Abschnitt 1 entfernt
+`tickets.pruefung`, `tickets.migrationstext`, `tickets.ddl_test`,
+`tickets.buchungstest` und `tickets."Kunde"`; die Datei lässt sich deshalb
+mehrfach ausführen.

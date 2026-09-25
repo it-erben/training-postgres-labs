@@ -50,7 +50,9 @@ CREATE TABLE tickets.messung (
    ```
 
 2. Lies `xmin` und `ctid` von Ticket 1, aktualisiere die Zeile und lies
-   beide Werte erneut:
+   beide Werte erneut. Führe die drei Anweisungen nacheinander einzeln aus
+   (Cursor in die Anweisung, `Execute query`), sonst zeigt `Data Output`
+   nur das Ergebnis der letzten Anweisung:
 
    ```sql
    SELECT xmin, ctid FROM tickets.ticket WHERE id = 1;
@@ -120,33 +122,42 @@ CREATE TABLE tickets.messung (
    ALTER TABLE tickets.ticket SET (autovacuum_enabled = false);
    ```
 
-   Aktualisiere 10000 Tickets und lies `n_dead_tup`:
+   Die folgenden vier Blöcke führst du jeweils für sich aus: Block
+   markieren, F5, erst danach den nächsten Block. Aktualisiere 10000
+   Tickets:
 
    ```sql
    UPDATE tickets.ticket SET priority = priority WHERE id <= 10000;
    SELECT pg_stat_force_next_flush();
-   SELECT n_dead_tup FROM pg_stat_user_tables
-   WHERE schemaname = 'tickets' AND relname = 'ticket';
    ```
 
-   `pg_stat_force_next_flush()` schreibt die Zählerstände der eigenen
-   Sitzung sofort fest, statt auf die übliche periodische Veröffentlichung
-   zu warten. Halte den Wert fest:
+   `pg_stat_force_next_flush()` sorgt dafür, dass die Sitzung ihre
+   Zählerstände direkt nach dem Ende der Transaktion veröffentlicht. Lies
+   `n_dead_tup` deshalb erst in der nächsten Ausführung und halte den Wert
+   fest:
 
    ```sql
    INSERT INTO tickets.messung (schritt, wert)
    SELECT 'tote_tupel_nach_update', n_dead_tup::text
    FROM pg_stat_user_tables WHERE schemaname = 'tickets' AND relname = 'ticket';
+   SELECT n_dead_tup FROM pg_stat_user_tables
+   WHERE schemaname = 'tickets' AND relname = 'ticket';
    ```
 
-   Räume auf und lies erneut:
+   Räume auf. `VACUUM` steht allein in der Markierung:
 
    ```sql
    VACUUM tickets.ticket;
-   SELECT pg_stat_force_next_flush();
+   ```
+
+   Lies erneut und halte den Wert fest:
+
+   ```sql
    INSERT INTO tickets.messung (schritt, wert)
    SELECT 'tote_tupel_nach_vacuum', n_dead_tup::text
    FROM pg_stat_user_tables WHERE schemaname = 'tickets' AND relname = 'ticket';
+   SELECT n_dead_tup FROM pg_stat_user_tables
+   WHERE schemaname = 'tickets' AND relname = 'ticket';
    ```
 
    Setze `autovacuum` danach zurück:
@@ -156,7 +167,9 @@ CREATE TABLE tickets.messung (
    ```
 
 5. Merke dir die aktuelle WAL-Position, aktualisiere Ticket 1 erneut und
-   bilde die Differenz:
+   bilde die Differenz. Führe die drei Anweisungen einzeln aus.
+   `pg_current_wal_lsn()` liefert die geschriebene WAL-Position; das
+   `UPDATE` ist darin erst nach seinem `COMMIT` enthalten:
 
    ```sql
    SELECT pg_current_wal_lsn() AS start_lsn;
@@ -184,9 +197,9 @@ Referenzlauf:
         schritt         | wert  
 ------------------------+-------
  ctid_geaendert         | true
- tote_tupel_nach_update | 10003
+ tote_tupel_nach_update | 10002
  tote_tupel_nach_vacuum | 0
- wal_bytes              | 4512
+ wal_bytes              | 120
 (4 rows)
 ```
 
@@ -199,9 +212,11 @@ Lauf ab.
 ## Hinweise
 
 `n_dead_tup` in `pg_stat_user_tables` stammt aus Zählern, die eine Sitzung
-erst am Ende ihrer Transaktion veröffentlicht. `pg_stat_force_next_flush()`
-erzwingt diese Veröffentlichung sofort, ohne auf die nächste automatische
-Gelegenheit zu warten.
+erst nach dem Ende ihrer Transaktion veröffentlicht. `pg_stat_force_next_flush()`
+erzwingt diese Veröffentlichung beim nächsten Transaktionsende, ohne auf die
+nächste automatische Gelegenheit zu warten. Stehen `UPDATE` und Abfrage in
+derselben Markierung, laufen sie als eine Transaktion, und die Abfrage liest
+noch den alten Zählerstand.
 
 Autovacuum kann `n_dead_tup` schon vor deinem eigenen `VACUUM` senken, wenn
 in der Zwischenzeit ein automatischer Lauf startet. Deshalb schaltet die
@@ -209,15 +224,19 @@ in der Zwischenzeit ein automatischer Lauf startet. Deshalb schaltet die
 zurück. In einer produktiven Datenbank bleibt Autovacuum eingeschaltet;
 das Abschalten dient hier ausschließlich der reproduzierbaren Messung.
 
-`VACUUM` läuft außerhalb eines Transaktionsblocks. In pgAdmin reicht dafür
-die einzelne Anweisung im Query Tool bei eingeschaltetem Auto commit.
+`VACUUM` läuft nur außerhalb eines Transaktionsblocks. pgAdmin schickt eine
+Markierung mit mehreren Anweisungen als eine Transaktion; `VACUUM` darin
+endet mit `ERROR: VACUUM cannot run inside a transaction block` (SQLSTATE
+`25001`). Allein markiert und bei eingeschaltetem `Auto commit` läuft es.
 
 `xmin` und `ctid` ändern sich bei praktisch jedem `UPDATE`: PostgreSQL legt
 immer eine neue Zeilenversion an, auch wenn sich der gespeicherte Wert nicht
 ändert. Das gilt unabhängig davon, ob ein HOT-Update greift.
 
-`loesung.sql` bildet Aufgabe 3 als Kommentar mit den Blöcken `Verbindung A`
-und `Verbindung B` ab, weil eine einzelne Skriptausführung keine zweite
-Verbindung hat. Die Datei entfernt zu Beginn `tickets.messung` und lässt
-sich deshalb mehrfach ausführen; die Werte in `tickets.messung` können sich
-dabei von Lauf zu Lauf unterscheiden.
+`loesung.sql` läuft abschnittsweise: Jeder Block ab `-- Abschnitt` wird
+einzeln markiert und ausgeführt. Aufgabe 3 steht als Kommentar mit den
+Blöcken `Verbindung A` und `Verbindung B`, weil eine einzelne
+Skriptausführung keine zweite Verbindung hat. Abschnitt 1 entfernt
+`tickets.messung`; die Datei lässt sich deshalb mehrfach ausführen, und die
+Werte in `tickets.messung` können sich dabei von Lauf zu Lauf
+unterscheiden.
