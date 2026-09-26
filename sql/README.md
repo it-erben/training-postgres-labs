@@ -24,9 +24,7 @@ Blöcke im selben Query Tool.
 
 Jede `AUFGABE.md` hat denselben Aufbau: Ziel, Ausgangsstand, nummerierte
 Aufgaben, Ergebnis prüfen mit echter Abfrage und tatsächlicher Ausgabe, dazu
-Hinweise. Übungen, die vor einem Schritt nach einer Vorhersage fragen,
-sammeln die Referenzausgaben mit Erklärung am Ende im Abschnitt
-"Auflösung". Die Musterlösung liegt getrennt von der Aufgabe unter
+Hinweise. Die Musterlösung liegt getrennt von der Aufgabe unter
 `answers/sql/NN-thema/loesung.sql`. Jeder Abschnitt darin ist eine
 Ausführung.
 
