@@ -99,7 +99,7 @@ beide Wege offen; `kubectl` läuft mit dem Kontext `awe-d-pinniped` wie in
    erlauben:
 
    - `kubectl -n training-postgres get cluster <cluster>` und
-     `kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L role`
+     `kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L cnpg.io/instanceRole`
    - Headlamp: `Custom Resources`, Gruppe `postgresql.cnpg.io`, `Cluster`,
      dann dein Cluster
 
@@ -115,7 +115,7 @@ beide Wege offen; `kubectl` läuft mit dem Kontext `awe-d-pinniped` wie in
    NAME         AGE   INSTANCES   READY   STATUS                     PRIMARY
    trainer-pg   24h   2           2       Cluster in healthy state   trainer-pg-1
 
-   NAME           READY   STATUS    RESTARTS      AGE    IP             ROLE
+   NAME           READY   STATUS    RESTARTS      AGE    IP             INSTANCEROLE
    trainer-pg-1   2/2     Running   0             108m   100.64.3.140   primary
    trainer-pg-2   2/2     Running   1 (99m ago)   24h    100.64.1.16    replica
    ```
@@ -244,10 +244,12 @@ die Zeile dann noch nicht sein. Darauf wartet erst
 Primärinstanz. Ob eine Abfrage den neuesten Stand sieht, hängt dort von der
 je Verbindung gewählten Instanz ab.
 
-In der Pod-Liste aus Aufgabe 4 steht die Rolle in der Spalte `ROLE`. Die
-Primärinstanz heißt nicht immer `<cluster>-1`: Nach einem Switchover oder
-Failover übernimmt ein anderer Pod diese Rolle, und der Dienst
-`<cluster>-rw` zeigt dann auf ihn.
+In der Pod-Liste aus Aufgabe 4 steht die Rolle in der Spalte
+`INSTANCEROLE`, dem Label `cnpg.io/instanceRole`. Das ältere Label `role`
+trägt denselben Wert, ist in CloudNativePG 1.30 aber als veraltet
+markiert. Die Primärinstanz heißt nicht immer `<cluster>-1`: Nach einem
+Switchover oder Failover übernimmt ein anderer Pod diese Rolle, und der
+Dienst `<cluster>-rw` zeigt dann auf ihn.
 
 `loesung.sql` entfernt zu Beginn `tickets.read_test` und lässt sich deshalb
 mehrfach ausführen. Der ausführbare Teil läuft auf dem RW-Server. Die

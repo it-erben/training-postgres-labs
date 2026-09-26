@@ -61,8 +61,8 @@ FROM tickets.read_test;
 -- Variante kubectl:
 --   kubectl -n training-postgres get cluster <cluster>
 --   Spalten STATUS (Phase), PRIMARY (Primärinstanz), INSTANCES und READY.
---   kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L role -o wide
---   Spalte ROLE: eine Instanz primary, die übrigen replica. Spalte IP:
+--   kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L cnpg.io/instanceRole -o wide
+--   Spalte INSTANCEROLE: eine Instanz primary, die übrigen replica. Spalte IP:
 --   Die Adresse der Primärinstanz ist die server_addr aus Aufgabe 1.
 -- Variante Headlamp:
 --   Custom Resources > postgresql.cnpg.io > Cluster > <cluster>,
