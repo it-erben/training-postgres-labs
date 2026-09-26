@@ -5,9 +5,8 @@
 Du beobachtest Sitzungen in `pg_stat_activity`, Zeilenversionen bei einem
 `UPDATE` und die Sichtbarkeit einer offenen Änderung in einer zweiten
 Verbindung. Danach misst du das WAL eines einzelnen `UPDATE` sowie tote
-Tupel und Tabellengröße vor und nach `VACUUM`. Vor jedem Schritt legst du
-dich auf eine Vorhersage fest. Die Messwerte liefert die Datenbank selbst,
-die [Auflösung](#auflösung) am Ende erklärt sie.
+Tupel und Tabellengröße vor und nach `VACUUM`. Nach jeder Abfrage steht die
+Ausgabe eines Referenzlaufs mit einer Erklärung, was die Werte bedeuten.
 
 ## Ausgangsstand
 
@@ -16,8 +15,10 @@ eingerichtet. Die Übung setzt keine andere Übung voraus. Du brauchst zwei
 Query Tools A und B, beide mit `Auto commit` an und `Auto rollback on error`
 aus. Jeder Codeblock ist eine Ausführung, wie in Übung 0 beschrieben.
 
-Notiere deine Vorhersage, bevor du einen Block ausführst. Die Werte der
-Auflösung stammen aus dem ersten Durchlauf nach einem frischen `setup.sql`.
+Die Referenzausgaben stammen aus dem Kurscluster `trainer-pg`, PostgreSQL
+18.6, Rolle `app`, erster Durchlauf nach einem frischen `setup.sql`.
+Transaktionsnummern, Prozess-IDs und Zeitpunkte weichen in jeder Umgebung
+ab.
 
 ## Aufgaben
 
@@ -35,8 +36,7 @@ Auflösung stammen aus dem ersten Durchlauf nach einem frischen `setup.sql`.
    SET application_name = 'exercise-b';
    ```
 
-3. Vorhersage: Welchen `state` hat die Zeile von A, welchen die von B? Wie
-   viele Zeilen liefert die Abfrage insgesamt? In A:
+3. In A:
 
    ```sql
    SELECT application_name, pid = pg_backend_pid() AS own_session,
@@ -46,18 +46,37 @@ Auflösung stammen aus dem ersten Durchlauf nach einem frischen `setup.sql`.
    ORDER BY application_name;
    ```
 
+   Referenzlauf:
+
+   ```text
+    application_name | own_session |  backend_type  | state
+   ------------------+-------------+----------------+--------
+    exercise-a       | t           | client backend | active
+    exercise-b       | f           | client backend | idle
+   (2 rows)
+   ```
+
+   **Was das Ergebnis zeigt:** Jedes Query Tool hat ein eigenes Backend mit
+   eigener `pid`, deshalb ist `own_session` nur in der Zeile von A `t`. A
+   führt in diesem Moment die Abfrage aus und steht auf `active`. B ist
+   verbunden und wartet auf die nächste Anweisung, also `idle`.
+
+   Im pgAdmin liefert die Abfrage mehr als zwei Zeilen. Der Objektbaum
+   erscheint als `pgAdmin 4 - DB:app`, jedes Query Tool ohne eigenen Namen
+   als `pgAdmin 4 - CONN:` mit einer Zahl. Ist die Autovervollständigung
+   eingeschaltet, hält ein Query Tool eine zweite Verbindung.
+
 ### 2. Zeilenversionen eines `UPDATE`
 
-`ctid` ist die physische Adresse einer Zeilenversion: Seite und Position auf
-der Seite. `xmin` nennt die Transaktion, die die Version angelegt hat, `xmax`
-die Transaktion, die sie gelöscht oder ersetzt hat. `RETURNING` liefert seit
-PostgreSQL 18 mit `old.` und `new.` beide Versionen in einer Zeile.
-`pg_stat_get_xact_tuples_hot_updated` zählt die HOT-Updates der laufenden
-Transaktion.
+`ctid` ist die physische Adresse einer Zeilenversion. Sie enthält die Seite
+und die Position auf der Seite. `xmin` nennt die Transaktion, die die
+Version angelegt hat, `xmax` die Transaktion, die sie gelöscht oder ersetzt
+hat. `RETURNING` liefert seit PostgreSQL 18 mit `old.` und `new.` beide
+Versionen in einer Zeile. `pg_stat_get_xact_tuples_hot_updated` zählt die
+HOT-Updates der laufenden Transaktion.
 
-1. Vorhersage: Das `UPDATE` setzt `priority` auf den Wert, den die Spalte
-   schon hat. Ändert sich `ctid`? Liegt die neue Version auf derselben Seite
-   wie die alte? Welche Zahl steht in `old_xmax`? In A:
+1. Das `UPDATE` setzt `priority` auf den Wert, den die Spalte schon hat. In
+   A:
 
    ```sql
    UPDATE tickets.ticket SET priority = priority WHERE id = 1
@@ -68,9 +87,40 @@ Transaktion.
                  AS hot_updates;
    ```
 
-2. Vorhersage: Du führst denselben Block ein zweites Mal aus. Auf welcher
-   Seite landet die neue Version jetzt? Zeigt `hot_updates` eine andere Zahl
-   als beim ersten Mal?
+   Referenzlauf:
+
+   ```text
+    old_ctid | new_ctid  | old_xmin | old_xmax | new_xmin | hot_updates
+   ----------+-----------+----------+----------+----------+-------------
+    (0,1)    | (19292,8) |     2088 |     2097 |     2097 |           0
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** Jedes `UPDATE` legt eine neue Zeilenversion
+   an, auch wenn sich kein Wert ändert. Die alte Version trägt danach in
+   `xmax` die Nummer 2097 der Transaktion, die das `UPDATE` ausgeführt hat.
+   Dieselbe Nummer steht in `xmin` der neuen Version. Ticket 1 liegt nach
+   `setup.sql` auf Seite 0, und `setup.sql` füllt die Seiten vollständig. Die
+   neue Version landet deshalb auf der letzten Seite 19292, die noch Platz
+   hat. Das ist kein HOT-Update, `hot_updates` bleibt 0.
+
+2. Führe denselben Block ein zweites Mal aus.
+
+   Referenzlauf:
+
+   ```text
+    old_ctid  | new_ctid  | old_xmin | old_xmax | new_xmin | hot_updates
+   -----------+-----------+----------+----------+----------+-------------
+    (19292,8) | (19292,9) |     2097 |     2098 |     2098 |           1
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** Die Zeile liegt jetzt auf Seite 19292, und
+   dort ist Platz. Die neue Version bleibt auf derselben Seite, PostgreSQL
+   führt ein HOT-Update aus und `hot_updates` zeigt 1. Ein HOT-Update legt
+   keinen neuen Indexeintrag an. Es braucht Platz auf derselben Seite, und
+   keine indizierte Spalte darf ihren Wert ändern. Nach `setup.sql` ist nur
+   `id` indiziert (`ticket_pkey`), `priority` in keiner Übung.
 
 ### 3. Sichtbarkeit über zwei Verbindungen
 
@@ -82,18 +132,47 @@ Transaktion.
    UPDATE tickets.ticket SET subject = subject || ' (A)' WHERE id = 1;
    ```
 
-2. Vorhersage: Wartet die Abfrage in B, bis A die Transaktion beendet?
-   Welchen Betreff und welche `ctid` sieht B, und was steht in `xmax`? In B:
+2. In B:
 
    ```sql
    SELECT ctid, xmin, xmax, subject FROM tickets.ticket WHERE id = 1;
    ```
 
-3. Vorhersage: Was liefert dieselbe Abfrage in A? In A:
+   Referenzlauf:
+
+   ```text
+      ctid    | xmin | xmax |                subject
+   -----------+------+------+----------------------------------------
+    (19292,9) | 2098 | 2099 | Ticket #1: Fehlermeldung beim Checkout
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** Die Abfrage kommt sofort zurück, lesende
+   Zugriffe warten nicht auf Zeilensperren. B sieht die Version `(19292,9)`
+   aus Aufgabe 2 mit dem alten Betreff. Ihr `xmax` enthält bereits die
+   Transaktion 2099 von A. Solange A nicht bestätigt hat, bleibt die alte
+   Version für B trotzdem sichtbar. Ungültig wird sie erst, wenn die
+   Transaktion in `xmax` bestätigt ist.
+
+3. In A:
 
    ```sql
    SELECT ctid, xmin, xmax, subject FROM tickets.ticket WHERE id = 1;
    ```
+
+   Referenzlauf:
+
+   ```text
+       ctid    | xmin | xmax |                  subject
+   ------------+------+------+--------------------------------------------
+    (19292,10) | 2099 |    0 | Ticket #1: Fehlermeldung beim Checkout (A)
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** A sieht die eigene Änderung schon vor dem
+   `COMMIT`. Die neue Version `(19292,10)` trägt in `xmin` die eigene
+   Transaktion 2099. `xmax` ist 0, keine Transaktion hat diese Version
+   gelöscht oder ersetzt.
 
 4. In A:
 
@@ -101,12 +180,24 @@ Transaktion.
    COMMIT;
    ```
 
-5. Vorhersage: Was ändert sich, wenn B die Abfrage jetzt erneut ausführt?
-   In B:
+5. In B:
 
    ```sql
    SELECT ctid, xmin, xmax, subject FROM tickets.ticket WHERE id = 1;
    ```
+
+   Referenzlauf:
+
+   ```text
+       ctid    | xmin | xmax |                  subject
+   ------------+------+------+--------------------------------------------
+    (19292,10) | 2099 |    0 | Ticket #1: Fehlermeldung beim Checkout (A)
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** B liest jetzt dieselbe Version wie A in
+   Schritt 3. Unter `READ COMMITTED` bekommt jede Abfrage einen neuen
+   Snapshot, und in diesem ist Transaktion 2099 bestätigt.
 
 ### 4. WAL eines einzelnen `UPDATE`
 
@@ -121,13 +212,15 @@ Datenbank dann selbst aus. Alle Schritte laufen in A.
    SELECT set_config('exercise.wal_start', pg_current_wal_lsn()::text, false);
    ```
 
-2. Vorhersage: Wie viel WAL erzeugt das `UPDATE` einer einzigen Zeile, deren
-   Wert gleich bleibt: einige hundert Byte, einige Kilobyte oder mehr als
-   100 kB?
+2. Eine Zeile aktualisieren, deren Wert gleich bleibt:
 
    ```sql
    UPDATE tickets.ticket SET priority = priority WHERE id = 1;
    ```
+
+   Mit `Auto commit` endet das `UPDATE` mit seinem `COMMIT`. Der `COMMIT`
+   schreibt das WAL spätestens bis einschließlich seines Commit-Eintrags.
+   Die Differenz in Schritt 3 enthält das `UPDATE` deshalb sicher.
 
 3. Differenz zur Startposition:
 
@@ -139,14 +232,40 @@ Datenbank dann selbst aus. Alle Schritte laufen in A.
               AS last_checkpoint;
    ```
 
-   Mit `Auto commit` endet das `UPDATE` aus Schritt 2 mit seinem `COMMIT`.
-   Das WAL des `UPDATE` kann schon vor dem `COMMIT` geschrieben sein. Der
-   `COMMIT` schreibt das WAL spätestens bis einschließlich seines
-   Commit-Eintrags. Nach dem `COMMIT` ist das `UPDATE` deshalb sicher in der
-   Differenz enthalten.
+   Referenzlauf, nach einem Checkpoint:
 
-4. Vorhersage: Du wiederholst die Schritte 1 bis 3 sofort. Wird `wal_bytes`
-   größer, kleiner oder bleibt es gleich?
+   ```text
+    wal_bytes |    last_checkpoint
+   -----------+------------------------
+         2440 | 2026-09-25 18:09:35+00
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** Ändert sich eine Seite zum ersten Mal nach
+   einem Checkpoint, schreibt PostgreSQL zusätzlich ein Abbild der ganzen
+   Seite ins WAL, das Full Page Image. Den leeren Bereich der Seite lässt es
+   dabei weg. Seite 19292 ist großteils leer, deshalb 2440 Byte statt rund
+   8 kB. `last_checkpoint` liegt nach dem `COMMIT` aus Aufgabe 3, der die
+   Seite zuletzt geändert hatte. Liegt kein Checkpoint dazwischen, zeigt schon
+   diese Messung denselben Wert wie Schritt 4.
+
+4. Wiederhole die Schritte 1 bis 3 sofort.
+
+   Referenzlauf:
+
+   ```text
+    wal_bytes |    last_checkpoint
+   -----------+------------------------
+          288 | 2026-09-25 18:09:35+00
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** Seit dem letzten Checkpoint hat die Seite ihr
+   Full Page Image schon. Übrig bleiben der Eintrag für die neue
+   Zeilenversion und der Commit-Eintrag, zusammen einige hundert Byte. Der
+   Kurscluster läuft mit `wal_level = logical` und schreibt die neue Version
+   dabei vollständig ins WAL, 288 Byte. Ein lokaler Server mit
+   `wal_level = replica` schrieb für dasselbe `UPDATE` 112 Byte.
 
 ### 5. Tote Tupel und Tabellengröße
 
@@ -167,9 +286,7 @@ Block.
                      pg_relation_size('tickets.ticket')::text, false);
    ```
 
-3. Vorhersage: Wie viele tote Tupel zählt PostgreSQL nach dem `UPDATE` von
-   20000 Zeilen? Wächst die Tabelle, und wenn ja, um wie viele Seiten zu
-   8 kB? Beide Anweisungen laufen als eine Ausführung:
+3. 20000 Zeilen aktualisieren. Beide Anweisungen laufen als eine Ausführung:
 
    ```sql
    UPDATE tickets.ticket SET priority = priority WHERE id <= 20000;
@@ -190,7 +307,21 @@ Block.
    WHERE relid = 'tickets.ticket'::regclass;
    ```
 
-5. Vorhersage: Was ändert `VACUUM` an `n_dead_tup`, was an `new_pages`?
+   Referenzlauf:
+
+   ```text
+    n_dead_tup | new_pages
+   ------------+-----------
+         20005 |       479
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** Jede der 20000 alten Versionen ist nach dem
+   `UPDATE` tot. Die fünf weiteren stammen von Ticket 1 aus den Aufgaben 2
+   bis 4. Die neuen Versionen passen nicht auf die vollen Seiten ihrer alten
+   Versionen, die Tabelle wächst um 479 Seiten zu 8 kB, rund 3,7 MB.
+
+5. Tote Tupel entfernen:
 
    ```sql
    VACUUM tickets.ticket;
@@ -198,8 +329,22 @@ Block.
 
 6. Führe die Messung aus Schritt 4 erneut aus.
 
-7. Vorhersage: Du aktualisierst dieselben 20000 Zeilen noch einmal. Um wie
-   viele Seiten wächst die Tabelle diesmal? Wieder eine Ausführung:
+   Referenzlauf:
+
+   ```text
+    n_dead_tup | new_pages
+   ------------+-----------
+             0 |       479
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** `VACUUM` entfernt die toten Versionen,
+   `n_dead_tup` fällt auf 0. Die Datei bleibt gleich groß. `VACUUM` trägt
+   den frei gewordenen Platz in die Free Space Map ein und gibt ihn nicht an
+   das Betriebssystem zurück. Nur leere Seiten am Ende der Datei kann es
+   abschneiden.
+
+7. Dieselben 20000 Zeilen noch einmal aktualisieren, wieder eine Ausführung:
 
    ```sql
    UPDATE tickets.ticket SET priority = priority WHERE id <= 20000;
@@ -207,6 +352,20 @@ Block.
    ```
 
 8. Führe die Messung aus Schritt 4 erneut aus.
+
+   Referenzlauf:
+
+   ```text
+    n_dead_tup | new_pages
+   ------------+-----------
+         20000 |       480
+   (1 row)
+   ```
+
+   **Was das Ergebnis zeigt:** Das zweite `UPDATE` legt seine 20000 neuen
+   Versionen in den Platz, den `VACUUM` in Schritt 5 frei gemacht hat. Die
+   Tabelle wächst nur um eine Seite, von 479 auf 480. `n_dead_tup` zählt
+   wieder die 20000 alten Versionen.
 
 9. Räume die toten Tupel aus Schritt 7 weg:
 
@@ -255,6 +414,28 @@ WHERE id = 1;
 
 ## Hinweise
 
+Bei einem weiteren Durchlauf ohne frisches `setup.sql` weichen einige Werte
+von den Referenzausgaben ab. Ticket 1 liegt dann schon auf einer Seite mit
+Platz, und bereits die erste Ausführung in Aufgabe 2 ist ein HOT-Update. In
+Aufgabe 5 zeigt `new_pages` schon in Schritt 4 den Wert 0, weil der Platz
+aus dem ersten Durchlauf frei ist.
+
+`wal_bytes` zählt das WAL der ganzen Instanz, auch das anderer Sitzungen und
+von Autovacuum. Kurz nach `setup.sql` bereinigt Autovacuum `comment` und
+`ticket`; eine Messung in diesem Zeitraum zeigte lokal 231376 Byte. Zeigt
+`wal_bytes` mehrere Megabyte, lag ein Wechsel der WAL-Datei zwischen Start
+und Messung. Der Kurscluster wechselt spätestens alle fünf Minuten
+(`archive_timeout = 300`). Wiederhole in beiden Fällen die Schritte 1 bis 3
+aus Aufgabe 4.
+
+Aufgabe 5 aktualisiert 20000 Zeilen, weil bei 10000 Zeilen der Effekt aus
+Schritt 8 fehlt. Die toten Versionen liegen dann auf rund 1,2 % der Seiten.
+Unter 2 % überspringt `VACUUM` mit der Voreinstellung `INDEX_CLEANUP AUTO`
+die Indexbereinigung. Die toten Zeilenzeiger bleiben stehen, und der Platz
+erscheint nicht in der Free Space Map. In einem lokalen Test mit 10000
+Zeilen wuchs die Tabelle beim ersten `UPDATE` um 239 Seiten und beim zweiten
+um weitere 238.
+
 `VACUUM` läuft nur außerhalb eines Transaktionsblocks. Steht es mit einer
 weiteren Anweisung in einer Ausführung, endet es mit
 `ERROR: VACUUM cannot run inside a transaction block` (SQLSTATE `25001`).
@@ -262,8 +443,8 @@ weiteren Anweisung in einer Ausführung, endet es mit
 `n_dead_tup` stammt aus Zählern, die eine Sitzung erst nach dem Ende ihrer
 Transaktion veröffentlicht. Ohne `pg_stat_force_next_flush()` tut sie das
 höchstens einmal je Sekunde, in einem lokalen Test zum Teil erst nach
-mehreren Sekunden. Steht die Messung in derselben Ausführung wie das `UPDATE`, liest
-sie noch den alten Stand.
+mehreren Sekunden. Steht die Messung in derselben Ausführung wie das
+`UPDATE`, liest sie noch den alten Stand.
 
 Autovacuum ist nur während Aufgabe 5 abgeschaltet, damit die Zahlen
 reproduzierbar bleiben. In einer produktiven Datenbank bleibt es
@@ -278,171 +459,3 @@ merkt, noch einmal aus. Ohne ihn endet `current_setting` mit
 Ausführung. Aufgabe 3 steht darin als Kommentar, weil ein Skript nur eine
 Verbindung hat. Ausführbar bleibt davon das `UPDATE` von A, damit die
 Prüfabfrage denselben Stand liest.
-
-## Auflösung
-
-Die Ausgaben stammen aus dem Kurscluster `trainer-pg`, PostgreSQL 18.6,
-Rolle `app`, erster Durchlauf nach `setup.sql`. Transaktionsnummern,
-Prozess-IDs und Zeitpunkte weichen in jeder Umgebung ab.
-
-### Aufgabe 1
-
-```text
- application_name | own_session |  backend_type  | state
-------------------+-------------+----------------+--------
- exercise-a       | t           | client backend | active
- exercise-b       | f           | client backend | idle
-(2 rows)
-```
-
-A führt in diesem Moment die Abfrage aus und steht deshalb auf `active`. B
-ist verbunden und wartet auf die nächste Anweisung, also `idle`. Jedes Query
-Tool hat ein eigenes Backend mit eigener `pid`.
-
-Im pgAdmin liefert die Abfrage mehr als zwei Zeilen. Der Objektbaum erscheint
-als `pgAdmin 4 - DB:app`, jedes Query Tool ohne eigenen Namen als
-`pgAdmin 4 - CONN:` mit einer Zahl. Ist die Autovervollständigung
-eingeschaltet, hält ein Query Tool eine zweite Verbindung.
-
-### Aufgabe 2
-
-Erste Ausführung:
-
-```text
- old_ctid | new_ctid  | old_xmin | old_xmax | new_xmin | hot_updates
-----------+-----------+----------+----------+----------+-------------
- (0,1)    | (19292,8) |     2088 |     2097 |     2097 |           0
-(1 row)
-```
-
-Zweite Ausführung:
-
-```text
- old_ctid  | new_ctid  | old_xmin | old_xmax | new_xmin | hot_updates
------------+-----------+----------+----------+----------+-------------
- (19292,8) | (19292,9) |     2097 |     2098 |     2098 |           1
-(1 row)
-```
-
-Jedes `UPDATE` legt eine neue Zeilenversion an, auch wenn sich kein Wert
-ändert. `ctid` ändert sich deshalb bei beiden Ausführungen. Die alte Version
-trägt danach in `xmax` die Nummer der Transaktion, die das `UPDATE`
-ausgeführt hat. Dieselbe Nummer steht in `xmin` der neuen Version.
-
-Ticket 1 liegt nach `setup.sql` auf Seite 0. `setup.sql` füllt die Seiten
-vollständig, die neue Version passt dort nicht mehr hin. PostgreSQL legt sie
-auf der letzten Seite 19292 ab, die noch Platz hat. Das ist kein HOT-Update,
-`hot_updates` bleibt 0.
-
-Bei der zweiten Ausführung liegt die Zeile auf Seite 19292. Dort ist Platz,
-die neue Version bleibt auf derselben Seite, und PostgreSQL führt ein
-HOT-Update aus. Ein HOT-Update legt keinen neuen Indexeintrag an. Es setzt
-zweierlei voraus: Platz auf derselben Seite, und keine indizierte Spalte
-ändert ihren Wert. Nach `setup.sql` ist nur `id` indiziert (`ticket_pkey`),
-`priority` in keiner Übung.
-
-Bei einem weiteren Durchlauf liegt Ticket 1 schon auf einer Seite mit Platz.
-Dann ist bereits die erste Ausführung ein HOT-Update.
-
-### Aufgabe 3
-
-B, während A offen ist:
-
-```text
-   ctid    | xmin | xmax |                subject
------------+------+------+----------------------------------------
- (19292,9) | 2098 | 2099 | Ticket #1: Fehlermeldung beim Checkout
-(1 row)
-```
-
-A vor dem `COMMIT` und B nach dem `COMMIT`:
-
-```text
-    ctid    | xmin | xmax |                  subject
-------------+------+------+--------------------------------------------
- (19292,10) | 2099 |    0 | Ticket #1: Fehlermeldung beim Checkout (A)
-(1 row)
-```
-
-B wartet nicht. Lesende Zugriffe warten nicht auf Zeilensperren. B sieht die
-alte Version mit dem alten Betreff. Ihr `xmax` enthält bereits die
-Transaktion 2099 von A. Weil A noch nicht bestätigt hat, bleibt die alte
-Version für B sichtbar. `xmax` allein entscheidet also nicht über die
-Sichtbarkeit, maßgeblich ist der Status der Transaktion in `xmax`.
-
-A sieht die eigene Änderung schon vor dem `COMMIT`. Nach dem `COMMIT`
-bekommt die nächste Abfrage von B unter `READ COMMITTED` einen neuen
-Snapshot und liest die neue Version.
-
-### Aufgabe 4
-
-Die erste Messung lag im Referenzlauf nach einem Checkpoint:
-
-```text
- wal_bytes |    last_checkpoint
------------+------------------------
-      2440 | 2026-09-25 18:09:35+00
-(1 row)
-```
-
-Die Wiederholung direkt danach:
-
-```text
- wal_bytes |    last_checkpoint
------------+------------------------
-       288 | 2026-09-25 18:09:35+00
-(1 row)
-```
-
-Ein `UPDATE` einer Zeile ohne Full Page Image erzeugt einige hundert Byte:
-den Eintrag für die neue Zeilenversion und den Commit-Eintrag. Der
-Kurscluster läuft mit `wal_level = logical` und schreibt dabei die neue
-Version vollständig ins WAL, 288 Byte. Ein lokaler Server mit
-`wal_level = replica` schrieb für dasselbe `UPDATE` 112 Byte.
-
-Ändert sich eine Seite zum ersten Mal nach einem Checkpoint, schreibt
-PostgreSQL zusätzlich ein Abbild der ganzen Seite ins WAL, das Full Page
-Image. Den leeren Bereich der Seite lässt es dabei weg. Seite 19292 ist
-großteils leer, deshalb 2440 Byte statt rund 8 kB. `last_checkpoint`
-liegt im Referenzlauf nach dem `COMMIT` aus Aufgabe 3, der die Seite zuletzt
-geändert hatte. Die zweite Messung braucht kein Full Page Image mehr und
-bleibt bei 288 Byte. Ohne Checkpoint dazwischen zeigen beide Messungen
-288 Byte.
-
-`wal_bytes` zählt das WAL der ganzen Instanz, auch das anderer Sitzungen und
-von Autovacuum. Kurz nach `setup.sql` bereinigt Autovacuum `comment` und
-`ticket`; eine Messung in diesem Zeitraum zeigte lokal 231376 Byte. Zeigt
-`wal_bytes` mehrere Megabyte, lag ein Wechsel der WAL-Datei zwischen Start
-und Messung. Der Kurscluster wechselt spätestens alle fünf Minuten
-(`archive_timeout = 300`). Wiederhole in beiden Fällen die Schritte 1 bis 3.
-
-### Aufgabe 5
-
-| Messung        | `n_dead_tup` | `new_pages` |
-| -------------- | ------------ | ----------- |
-| nach Schritt 3 | 20005        | 479         |
-| nach Schritt 5 | 0            | 479         |
-| nach Schritt 7 | 20000        | 480         |
-
-Jede der 20000 alten Versionen ist nach dem `UPDATE` tot. Die fünf weiteren
-stammen von Ticket 1 aus den Aufgaben 2 bis 4. Die neuen Versionen passen
-nicht auf die vollen Seiten ihrer alten Versionen, die Tabelle wächst um 479
-Seiten, rund 3,7 MB.
-
-`VACUUM` entfernt die toten Versionen, `n_dead_tup` fällt auf 0. Die Datei
-bleibt gleich groß. `VACUUM` trägt den frei gewordenen Platz in die Free
-Space Map ein, gibt ihn aber nicht an das Betriebssystem zurück. Nur leere
-Seiten am Ende der Datei kann es abschneiden.
-
-Das zweite `UPDATE` legt seine 20000 neuen Versionen in den frei gewordenen
-Platz. Die Tabelle wächst nur um eine Seite.
-
-Bei 10000 Zeilen fehlt dieser Effekt: Die toten Versionen liegen dann auf
-rund 1,2 % der Seiten. Unter 2 % überspringt `VACUUM` mit der Voreinstellung
-`INDEX_CLEANUP AUTO` die Indexbereinigung. Die toten Zeilenzeiger bleiben
-dann stehen, und der Platz erscheint nicht in der Free Space Map. In einem
-lokalen Test mit 10000 Zeilen wuchs die Tabelle beim ersten `UPDATE` um 239
-Seiten und beim zweiten um weitere 238.
-
-In einem weiteren Durchlauf zeigt `new_pages` schon nach Schritt 3 den Wert
-0, weil der Platz aus dem ersten Durchlauf frei ist.
