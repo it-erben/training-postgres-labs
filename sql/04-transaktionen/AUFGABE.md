@@ -220,9 +220,15 @@ Sitzungen gezielt in `pg_stat_activity`.
    ORDER BY a.application_name, l.mode;
    ```
 
-   Für B steht dort eine nicht gewährte Sperre auf die Transaktions-ID von
-   A (`granted = f`). Genau diese Zeile erklärt das Warten. Schließe danach
-   in A mit `COMMIT;` und in B mit `ROLLBACK;` ab, wie in Aufgabe 4.
+   Für B steht dort eine nicht gewährte `ShareLock` mit
+   `locktype = transactionid` auf die Transaktions-ID von A
+   (`granted = f`). Genau diese Zeile erklärt das Warten. Daneben hält B
+   eine gewährte `ExclusiveLock` mit `locktype = tuple`, die Sperre auf die
+   Zeile selbst. Eine dritte Sitzung, die dieselbe Zeile ändern will,
+   wartet auf diese Tupelsperre und steht damit hinter B an. Die Zeilen mit
+   `SIReadLock` sind Prädikatsperren von `SERIALIZABLE` und blockieren
+   niemanden. Schließe danach in A mit `COMMIT;` und in B mit `ROLLBACK;`
+   ab, wie in Aufgabe 4.
 
 **Bonus: Deadlock.** Setze Ticket 1 und 2 zurück:
 `UPDATE tickets.ticket SET agent_id = NULL WHERE id IN (1, 2);`

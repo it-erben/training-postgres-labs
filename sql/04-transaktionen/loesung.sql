@@ -120,7 +120,8 @@ CREATE TABLE tickets.assignment_log (
 -- ORDER BY a.application_name, l.mode;
 -- -- B wartet mit wait_event_type=Lock, wait_event=transactionid. Die PID
 -- -- von A erscheint als Blockierer. In pg_locks steht für B eine nicht
--- -- gewährte Sperre auf die Transaktions-ID von A.
+-- -- gewährte ShareLock auf die Transaktions-ID von A (transactionid) und
+-- -- eine gewährte ExclusiveLock auf die Zeile (tuple).
 --
 -- Danach wie in Aufgabe 4 in A COMMIT und in B ROLLBACK ausführen.
 
