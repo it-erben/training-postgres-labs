@@ -146,5 +146,5 @@ Shell die Variable nicht kennt. Weitere Fehlerbilder:
 
 ## Fertig, wenn
 
-`dotnet test --filter-trait Exercise=00` vier grüne Tests meldet. Danach
-beginnt Übung 1 mit `git checkout -b meine-uebung-01 uebung-01-start`.
+`dotnet test --filter-trait Exercise=00` vier grüne Tests meldet. Übung 1
+läuft im selben Arbeitsverzeichnis weiter.

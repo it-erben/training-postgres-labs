@@ -1,4 +1,3 @@
-using System.Data;
 using Npgsql;
 
 namespace Rental.Bookings;
@@ -20,76 +19,13 @@ public sealed class BookingService(NpgsqlDataSource dataSource)
     /// <summary>Bonus: serialisiert Buchungen desselben Kunden über einen Advisory Lock.</summary>
     public bool UseAdvisoryLock { get; set; }
 
-    public async Task<long> BookAsync(Booking booking, CancellationToken ct = default)
+    public Task<long> BookAsync(Booking booking, CancellationToken ct = default)
     {
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                return await AttemptAsync(booking, ct);
-            }
-            catch (PostgresException e) when (IsRetryable(e) && attempt < MaxAttempts)
-            {
-                // Die gesamte Transaktion einschließlich der fachlichen Prüfung wird erneut
-                // ausgeführt, nach einer kurzen Pause: Die Gegentransaktion kann in dieser Zeit
-                // bestätigen, und der Zufallsanteil trennt gleichzeitige Wiederholungen.
-                await Task.Delay(RetryDelay(attempt), ct);
-            }
-            catch (PostgresException e) when (e.SqlState is PostgresErrorCodes.ExclusionViolation
-                                                or PostgresErrorCodes.UniqueViolation
-                                                or PostgresErrorCodes.CheckViolation
-                                                or PostgresErrorCodes.ForeignKeyViolation)
-            {
-                throw new BookingConflictException(e.ConstraintName ?? e.SqlState, e);
-            }
-        }
+        throw new NotImplementedException("Übung 3: serialisierbare Transaktion mit Prüfung, Wiederholung und Fehlerzuordnung.");
     }
 
-    public static bool IsRetryable(PostgresException e) =>
-        e.SqlState is PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected;
-
-    /// <summary>
-    /// Pause vor Versuch <paramref name="attempt"/> + 1: Obergrenze 100 ms, je Versuch
-    /// verdoppelt, höchstens 200 ms; gewartet wird zufällig zwischen der Hälfte und der
-    /// ganzen Obergrenze. Bei drei Versuchen sind das 50 bis 100 ms und 100 bis 200 ms.
-    /// </summary>
-    public static TimeSpan RetryDelay(int attempt)
+    public static bool IsRetryable(PostgresException e)
     {
-        var ceilingMs = Math.Min(200, 100 << Math.Min(attempt - 1, 4));
-        var delayMs = Random.Shared.Next(ceilingMs / 2, ceilingMs + 1);
-        return TimeSpan.FromMilliseconds(delayMs);
-    }
-
-    private async Task<long> AttemptAsync(Booking booking, CancellationToken ct)
-    {
-        await using var conn = await dataSource.OpenConnectionAsync(ct);
-        await using var tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-
-        if (UseAdvisoryLock)
-        {
-            await using var lockCmd = new NpgsqlCommand("SELECT pg_advisory_xact_lock($1)", conn, tx);
-            lockCmd.Parameters.Add(new NpgsqlParameter<long> { TypedValue = booking.CustomerId });
-            await lockCmd.ExecuteNonQueryAsync(ct);
-        }
-
-        if (BeforeCheck is not null)
-        {
-            await BeforeCheck(conn, ct);
-        }
-
-        await using (var countCmd = new NpgsqlCommand("SELECT count(*) FROM rental.booking WHERE customer_id = $1", conn, tx))
-        {
-            countCmd.Parameters.Add(new NpgsqlParameter<int> { TypedValue = booking.CustomerId });
-            var existing = (long)(await countCmd.ExecuteScalarAsync(ct))!;
-            if (existing >= MaxBookingsPerCustomer)
-            {
-                await tx.RollbackAsync(ct);
-                throw new BookingRejectedException($"Kunde {booking.CustomerId} hat bereits {existing} Buchungen.");
-            }
-        }
-
-        var id = await BookingStore.CreateAsync(conn, tx, booking, ct);
-        await tx.CommitAsync(ct);
-        return id;
+        throw new NotImplementedException("Übung 3: 40001 und 40P01 sind wiederholbar.");
     }
 }

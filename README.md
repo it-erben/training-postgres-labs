@@ -13,10 +13,11 @@ eine je Kursmodul. Arbeitsweise, Aufbau der Übungen und die vollständige
 ## .NET-Serie
 
 Sechs aufeinander aufbauende Übungen an einem Verleihdienst mit Geräten,
-Kunden und Buchungen. Jede Übung hat einen Startpunkt als Git-Tag, eine
-Aufgabenbeschreibung unter `dotnet/`, Tests, die zu Beginn rot sind, und
-eine Musterlösung als weiteres Git-Tag. Wer die Tests einer Übung grün hat,
-ist mit ihr fertig.
+Kunden und Buchungen. `main` enthält den Startstand aller Übungen: Tests und
+Stubs liegen von Beginn an in `Rental/` und `Rental.Tests/`, die Tests einer
+Übung sind zu Beginn rot. Jede Übung hat eine Aufgabenbeschreibung unter
+`dotnet/` und eine Musterlösung unter `answers/dotnet/`. Wer die Tests einer
+Übung grün hat, ist mit ihr fertig.
 
 ### Voraussetzungen
 
@@ -52,23 +53,12 @@ betroffene Test übersprungen.
 
 ### Ablauf
 
+Alle Übungen laufen im selben Arbeitsverzeichnis auf `main`. Der Trait
+`Exercise` wählt die Tests einer Übung aus:
+
 ```sh
-git checkout -b meine-uebung-01 uebung-01-start
 dotnet test --filter-trait Exercise=01
 ```
-
-Maßgeblich für die Aufgabentexte unter `dotnet/` und die SQL-Serie unter
-`sql/` ist der Stand von `main`. Jeder Tag enthält beide samt den Dateien
-`loesung.sql` im Stand von `main` beim letzten Aufbau der Tags. Ein zweiter
-Worktree hält `main` daneben bereit. Er lässt sich anlegen, sobald `main` nicht mehr im ersten
-Arbeitsverzeichnis ausgecheckt ist, also nach dem ersten `git checkout -b`:
-
-```sh
-git worktree add ../training-postgres-labs-sql main
-```
-
-Ohne Worktree stehen dieselben Dateien auf GitHub im Branch `main` unter
-`sql/`.
 
 Die Tests einer Übung sind zu Beginn rot und nennen den fehlenden Baustein.
 Bonus-Tests tragen den Trait `Stretch=true` und zählen nicht zur Abnahme:
@@ -77,20 +67,26 @@ Bonus-Tests tragen den Trait `Stretch=true` und zählen nicht zur Abnahme:
 dotnet test --filter-trait Exercise=03 --filter-not-trait Stretch=true
 ```
 
-Vor der nächsten Übung die eigene Arbeit committen. Der Startpunkt der
-nächsten Übung enthält die Musterlösung der vorigen:
+Jede Übung baut auf den Lösungen der vorigen auf. Die Tests von Übung 3
+brauchen etwa die DataSource aus Übung 1 und den `BookingStore` aus Übung 2.
+
+### Musterlösungen
+
+`answers/dotnet/NN-thema/` enthält die Dateien, die Übung NN löst, unter
+ihrem Pfad im Repository. Die Datei ersetzt die eigene Fassung. Eine Datei,
+die zwei Übungen ändern, liegt in der späteren Übung mit beiden Lösungen:
+`answers/dotnet/02-typen/Rental/Database/RentalDataSource.cs` enthält die
+Lösung aus Übung 1 und die Erweiterung aus Übung 2.
+
+Wer eine Übung nicht abschließt, übernimmt ihre Musterlösung und arbeitet
+mit der nächsten Übung weiter:
 
 ```sh
-git add -A && git commit -m "Uebung 1"
-git checkout -b meine-uebung-02 uebung-02-start
+cp -R answers/dotnet/01-verbindungen/. .
 ```
 
-Wer eine Übung nicht abschließt, wechselt auf die Musterlösung und arbeitet
-von dort weiter:
-
-```sh
-git checkout uebung-01-loesung
-```
+Mehrere Übungen werden in ihrer Reihenfolge übernommen. Die Musterlösungen
+der SQL-Serie liegen unter `answers/sql/`.
 
 `AUFGABEN.md` enthält die Übersicht der Übungen. Jede Übung hat unter
 `dotnet/` eine Aufgabe mit demselben Aufbau. Sie nennt, worum es geht und
@@ -104,20 +100,11 @@ seine Fehlermeldung bedeutet. Am Ende stehen Fallstricke und Bonus.
 Rental/                  Anwendung: Datenbank, Geräte, Buchungen, Import, Modell, Betrieb
 Rental.Tests/            Ein Testprojekt, Tests je Übung über den Trait Exercise
 dotnet/                  Aufgabenbeschreibungen je Übung
-scripts/                 Aufbau der Übungs-Tags
+answers/dotnet/          Musterlösungen je Übung, Pfade wie im Repository
+answers/sql/             Musterlösungen der SQL-Serie
 ```
 
 Die Anwendung ist eine Klassenbibliothek ohne Web-API; die Tests sind der
 einzige Aufrufer. Die Tests bauen das Schema `rental` vor jeder Testklasse
 neu auf und lesen den Serverzustand über `pg_stat_activity`,
 `pg_prepared_statements` und die Systemkataloge.
-
-### Tags neu aufbauen
-
-Die Tags `uebung-NN-start` und `uebung-NN-loesung` bilden eine Kette von
-Commits auf einem Stand von `main`. Jeder Commit der Kette ändert nur
-`Rental/` und `Rental.Tests/`. Nach einer Änderung an `main` setzt
-`scripts/rebuild-exercise-tags.sh` die Kette auf den aktuellen Stand von
-`main` und verschiebt die 13 Tags. Danach übernimmt
-`git push --force origin 'refs/tags/uebung-*'` sie auf GitHub; vorhandene
-Klone holen sie mit `git fetch --force --tags`.

@@ -174,5 +174,5 @@ Problem, mit Einzel-INSERTs schon.
 ## Fertig, wenn
 
 `dotnet test --filter-trait Exercise=01 --filter-not-trait Stretch=true` sechs
-grüne Tests meldet. Danach: eigene Arbeit committen und mit
-`git checkout -b meine-uebung-02 uebung-02-start` weiter.
+grüne Tests meldet. Übung 2 baut auf dieser Lösung auf. Wer hier nicht
+fertig wird, übernimmt vorher `answers/dotnet/01-verbindungen/`.
