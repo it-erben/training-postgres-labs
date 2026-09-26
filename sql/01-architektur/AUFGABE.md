@@ -5,8 +5,10 @@
 Du beobachtest Sitzungen in `pg_stat_activity`, Zeilenversionen bei einem
 `UPDATE` und die Sichtbarkeit einer offenen Änderung in einer zweiten
 Verbindung. Danach misst du das WAL eines einzelnen `UPDATE` sowie tote
-Tupel und Tabellengröße vor und nach `VACUUM`. Nach jeder Abfrage steht die
-Ausgabe eines Referenzlaufs mit einer Erklärung, was die Werte bedeuten.
+Tupel und Tabellengröße vor und nach `VACUUM`. Nach jeder Abfrage liest du
+einen Wert aus deiner eigenen Ausgabe ab. Ein eingeklappter Block darunter
+enthält die Ausgabe eines Referenzlaufs mit einer Erklärung, was die Werte
+bedeuten.
 
 ## Ausgangsstand
 
@@ -14,6 +16,10 @@ Das Schema `tickets` aus [Übung 0](../00-einrichtung/AUFGABE.md) ist
 eingerichtet. Die Übung setzt keine andere Übung voraus. Du brauchst zwei
 Query Tools A und B, beide mit `Auto commit` an und `Auto rollback on error`
 aus. Jeder Codeblock ist eine Ausführung, wie in Übung 0 beschrieben.
+
+Führe jede Abfrage zuerst selbst aus und beantworte die Frage unter
+**Ablesen** aus deiner Ausgabe. Klappe erst danach den Block
+"Referenzausgabe und Erklärung" auf und vergleiche.
 
 Die Referenzausgaben stammen aus dem Kurscluster `trainer-pg`, PostgreSQL
 18.6, Rolle `app`, erster Durchlauf nach einem frischen `setup.sql`.
@@ -46,7 +52,11 @@ ab.
    ORDER BY application_name;
    ```
 
-   Referenzlauf:
+   **Ablesen:** Welchen `state` zeigen die Zeilen `exercise-a` und
+   `exercise-b`?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
     application_name | own_session |  backend_type  | state
@@ -59,12 +69,15 @@ ab.
    **Was das Ergebnis zeigt:** Jedes Query Tool hat ein eigenes Backend mit
    eigener `pid`, deshalb ist `own_session` nur in der Zeile von A `t`. A
    führt in diesem Moment die Abfrage aus und steht auf `active`. B ist
-   verbunden und wartet auf die nächste Anweisung, also `idle`.
+   verbunden und wartet auf die nächste Anweisung, also `idle`. Diese beiden
+   Zeilen sehen bei dir genauso aus.
 
    Im pgAdmin liefert die Abfrage mehr als zwei Zeilen. Der Objektbaum
    erscheint als `pgAdmin 4 - DB:app`, jedes Query Tool ohne eigenen Namen
    als `pgAdmin 4 - CONN:` mit einer Zahl. Ist die Autovervollständigung
    eingeschaltet, hält ein Query Tool eine zweite Verbindung.
+
+   </details>
 
 ### 2. Zeilenversionen eines `UPDATE`
 
@@ -87,7 +100,11 @@ HOT-Updates der laufenden Transaktion.
                  AS hot_updates;
    ```
 
-   Referenzlauf:
+   **Ablesen:** Welche `ctid` hat die Zeile vor (`old_ctid`) und nach dem
+   `UPDATE` (`new_ctid`)?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
     old_ctid | new_ctid  | old_xmin | old_xmax | new_xmin | hot_updates
@@ -104,9 +121,20 @@ HOT-Updates der laufenden Transaktion.
    neue Version landet deshalb auf der letzten Seite 19292, die noch Platz
    hat. Das ist kein HOT-Update, `hot_updates` bleibt 0.
 
+   Bei dir weichen die Transaktionsnummern ab, eventuell auch Seite und
+   Position in `new_ctid`. Gleich bleibt: `new_ctid` ist eine andere Adresse
+   als `old_ctid`, `old_xmax` und `new_xmin` tragen dieselbe Nummer, und
+   `hot_updates` ist 0.
+
+   </details>
+
 2. Führe denselben Block ein zweites Mal aus.
 
-   Referenzlauf:
+   **Ablesen:** Auf welcher Seite liegen `old_ctid` und `new_ctid` jetzt,
+   und welchen Wert zeigt `hot_updates`?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
     old_ctid  | new_ctid  | old_xmin | old_xmax | new_xmin | hot_updates
@@ -121,6 +149,12 @@ HOT-Updates der laufenden Transaktion.
    keinen neuen Indexeintrag an. Es braucht Platz auf derselben Seite, und
    keine indizierte Spalte darf ihren Wert ändern. Nach `setup.sql` ist nur
    `id` indiziert (`ticket_pkey`), `priority` in keiner Übung.
+
+   Seitennummer, Position und Transaktionsnummern weichen bei dir ab. Gleich
+   bleibt: `old_ctid` ist dein `new_ctid` aus Schritt 1, beide Adressen
+   nennen dieselbe Seite, und `hot_updates` ist 1.
+
+   </details>
 
 ### 3. Sichtbarkeit über zwei Verbindungen
 
@@ -138,7 +172,10 @@ HOT-Updates der laufenden Transaktion.
    SELECT ctid, xmin, xmax, subject FROM tickets.ticket WHERE id = 1;
    ```
 
-   Referenzlauf:
+   **Ablesen:** Welche Nummer steht in `xmax`, und welchen Betreff sieht B?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
       ctid    | xmin | xmax |                subject
@@ -154,13 +191,23 @@ HOT-Updates der laufenden Transaktion.
    Version für B trotzdem sichtbar. Ungültig wird sie erst, wenn die
    Transaktion in `xmax` bestätigt ist.
 
+   `ctid` und die Nummern weichen bei dir ab. Gleich bleibt: `ctid` ist dein
+   `new_ctid` aus Aufgabe 2, `xmax` ist ungleich 0, und der Betreff hat
+   noch keinen Zusatz `(A)`.
+
+   </details>
+
 3. In A:
 
    ```sql
    SELECT ctid, xmin, xmax, subject FROM tickets.ticket WHERE id = 1;
    ```
 
-   Referenzlauf:
+   **Ablesen:** Welches `xmin` zeigt A, verglichen mit dem `xmax` aus
+   Schritt 2?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
        ctid    | xmin | xmax |                  subject
@@ -174,6 +221,12 @@ HOT-Updates der laufenden Transaktion.
    Transaktion 2099. `xmax` ist 0, keine Transaktion hat diese Version
    gelöscht oder ersetzt.
 
+   Bei dir weichen `ctid` und `xmin` ab. Gleich bleibt: `xmin` in A ist die
+   Nummer, die B in Schritt 2 als `xmax` gesehen hat, und die `ctid`
+   unterscheidet sich von der in B.
+
+   </details>
+
 4. In A:
 
    ```sql
@@ -186,7 +239,10 @@ HOT-Updates der laufenden Transaktion.
    SELECT ctid, xmin, xmax, subject FROM tickets.ticket WHERE id = 1;
    ```
 
-   Referenzlauf:
+   **Ablesen:** Welche `ctid` sieht B jetzt?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
        ctid    | xmin | xmax |                  subject
@@ -198,6 +254,11 @@ HOT-Updates der laufenden Transaktion.
    **Was das Ergebnis zeigt:** B liest jetzt dieselbe Version wie A in
    Schritt 3. Unter `READ COMMITTED` bekommt jede Abfrage einen neuen
    Snapshot, und in diesem ist Transaktion 2099 bestätigt.
+
+   Deine Werte für `ctid` und `xmin` weichen von der Referenz ab und stimmen
+   mit deiner Ausgabe von A aus Schritt 3 überein.
+
+   </details>
 
 ### 4. WAL eines einzelnen `UPDATE`
 
@@ -232,6 +293,11 @@ Datenbank dann selbst aus. Alle Schritte laufen in A.
               AS last_checkpoint;
    ```
 
+   **Ablesen:** Wie viele Byte zeigt `wal_bytes`?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
+
    Referenzlauf, nach einem Checkpoint:
 
    ```text
@@ -246,12 +312,22 @@ Datenbank dann selbst aus. Alle Schritte laufen in A.
    Seite ins WAL, das Full Page Image. Den leeren Bereich der Seite lässt es
    dabei weg. Seite 19292 ist großteils leer, deshalb 2440 Byte statt rund
    8 kB. `last_checkpoint` liegt nach dem `COMMIT` aus Aufgabe 3, der die
-   Seite zuletzt geändert hatte. Liegt kein Checkpoint dazwischen, zeigt schon
-   diese Messung denselben Wert wie Schritt 4.
+   Seite zuletzt geändert hatte.
+
+   Byte-Zahl und Zeitpunkt weichen bei dir ab. Liegt dein `last_checkpoint`
+   nach deinem `COMMIT` aus Aufgabe 3, enthält `wal_bytes` ein Full Page
+   Image und liegt im Bereich einiger tausend Byte. Liegt kein Checkpoint
+   dazwischen, zeigt schon diese Messung denselben Wert wie Schritt 4.
+
+   </details>
 
 4. Wiederhole die Schritte 1 bis 3 sofort.
 
-   Referenzlauf:
+   **Ablesen:** Wie viele Byte zeigt `wal_bytes` jetzt, verglichen mit
+   Schritt 3?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
     wal_bytes |    last_checkpoint
@@ -266,6 +342,12 @@ Datenbank dann selbst aus. Alle Schritte laufen in A.
    Kurscluster läuft mit `wal_level = logical` und schreibt die neue Version
    dabei vollständig ins WAL, 288 Byte. Ein lokaler Server mit
    `wal_level = replica` schrieb für dasselbe `UPDATE` 112 Byte.
+
+   Die genaue Byte-Zahl hängt bei dir von `wal_level` ab. Gleich bleibt:
+   einige hundert Byte, solange `last_checkpoint` denselben Zeitpunkt wie in
+   Schritt 3 zeigt.
+
+   </details>
 
 ### 5. Tote Tupel und Tabellengröße
 
@@ -307,7 +389,10 @@ Block.
    WHERE relid = 'tickets.ticket'::regclass;
    ```
 
-   Referenzlauf:
+   **Ablesen:** Welche Werte zeigen `n_dead_tup` und `new_pages`?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
     n_dead_tup | new_pages
@@ -321,6 +406,13 @@ Block.
    bis 4. Die neuen Versionen passen nicht auf die vollen Seiten ihrer alten
    Versionen, die Tabelle wächst um 479 Seiten zu 8 kB, rund 3,7 MB.
 
+   Bei dir liegt `n_dead_tup` knapp über 20000. Der Rest hängt davon ab, wie
+   oft du Ticket 1 in Aufgabe 2 bis 4 aktualisiert hast. `new_pages` hängt
+   davon ab, wie viel freien Platz die Tabelle vorher hatte. Gleich bleibt:
+   rund 20000 tote Tupel und ein Zuwachs von mehreren hundert Seiten.
+
+   </details>
+
 5. Tote Tupel entfernen:
 
    ```sql
@@ -329,7 +421,11 @@ Block.
 
 6. Führe die Messung aus Schritt 4 erneut aus.
 
-   Referenzlauf:
+   **Ablesen:** Welchen Wert zeigt `n_dead_tup` jetzt, und hat sich
+   `new_pages` gegenüber Schritt 4 verändert?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
     n_dead_tup | new_pages
@@ -344,6 +440,10 @@ Block.
    das Betriebssystem zurück. Nur leere Seiten am Ende der Datei kann es
    abschneiden.
 
+   Bei dir zeigt `new_pages` deinen Wert aus Schritt 4, `n_dead_tup` ist 0.
+
+   </details>
+
 7. Dieselben 20000 Zeilen noch einmal aktualisieren, wieder eine Ausführung:
 
    ```sql
@@ -353,7 +453,11 @@ Block.
 
 8. Führe die Messung aus Schritt 4 erneut aus.
 
-   Referenzlauf:
+   **Ablesen:** Um wie viele Seiten ist `new_pages` gegenüber Schritt 6
+   gewachsen?
+
+   <details>
+   <summary>Referenzausgabe und Erklärung</summary>
 
    ```text
     n_dead_tup | new_pages
@@ -366,6 +470,12 @@ Block.
    Versionen in den Platz, den `VACUUM` in Schritt 5 frei gemacht hat. Die
    Tabelle wächst nur um eine Seite, von 479 auf 480. `n_dead_tup` zählt
    wieder die 20000 alten Versionen.
+
+   Der Stand von `new_pages` kann bei dir abweichen. Gleich bleibt: ein
+   Zuwachs von höchstens wenigen Seiten gegenüber Schritt 6, verglichen mit
+   mehreren hundert Seiten in Schritt 4, und `n_dead_tup` zeigt 20000.
+
+   </details>
 
 9. Räume die toten Tupel aus Schritt 7 weg:
 
