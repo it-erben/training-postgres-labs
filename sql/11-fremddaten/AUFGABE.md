@@ -128,7 +128,10 @@ Aufgabe 1 zeigte auf `trainer-pg` nach Übung 6:
 ```
 
 Vor Übung 6 ist `installed_version` bei `btree_gist` leer. `oracle_fdw`
-liegt im Image der Kursumgebung, `tds_fdw` fehlt.
+liegt im Image der Kursumgebung, `tds_fdw` fehlt. Die Spalte
+`default_version` nennt die Version der SQL-Schnittstelle aus der
+Steuerdatei der Erweiterung. Bei `oracle_fdw` ist 1.2 nicht die Version
+der Software; die meldet erst `oracle_diag()` nach `CREATE EXTENSION`.
 
 In Aufgabe 5 bleibt die Bedingung auf `created_at` lokal. Das `Remote SQL`
 holt alle offenen Tickets, und ein lokaler `Aggregate`-Knoten zählt. Die
