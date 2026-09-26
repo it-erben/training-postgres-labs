@@ -206,5 +206,5 @@ Instanz oder bleiben leer. Ohne Schreiblast wächst `last_replay_age`, obwohl
 das Replikat nichts nachzuholen hat; maßgeblich ist `replay_complete`.
 
 Die .NET-Serie hat ihren eigenen Soundcheck: Übung 0 unter
-`uebungen/00-einrichtung` im code-server prüft Verbindung, Rolle, Version
+`dotnet/00-einrichtung` im code-server prüft Verbindung, Rolle, Version
 und Primärinstanz mit `dotnet test --filter-trait Exercise=00`.

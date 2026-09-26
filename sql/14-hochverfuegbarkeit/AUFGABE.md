@@ -240,7 +240,7 @@ Einspielen von WAL Zeilen entfernt, die sie noch braucht.
 Npgsql markiert `57P01`, `57P03`, `40001`, `40P01` und Netzwerkfehler mit
 `IsTransient = true`. Das sagt, dass ein neuer Versuch gelingen kann. Ob
 er eine Wirkung verdoppelt, entscheidet die Operations-ID. Die .NET-Übung
-06 im Ordner `uebungen/06-betrieb` zeigt `Keepalive` und das Lesen vom
+06 im Ordner `dotnet/06-betrieb` zeigt `Keepalive` und das Lesen vom
 Replikat.
 
 `loesung.sql` entfernt zu Beginn `tickets.operation` und lässt sich deshalb

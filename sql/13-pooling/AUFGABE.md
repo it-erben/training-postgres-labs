@@ -264,7 +264,7 @@ Anwendung gehört die Grenze an die Rolle, etwa
 `ALTER ROLE app SET idle_in_transaction_session_timeout = '60s'`, oder
 in die Cluster-Ressource.
 
-Die .NET-Übung 01 im Ordner `uebungen/01-verbindungen` begrenzt einen
+Die .NET-Übung 01 im Ordner `dotnet/01-verbindungen` begrenzt einen
 Npgsql-Pool auf vier Verbindungen und prüft die Grenze in
 `pg_stat_activity`.
 

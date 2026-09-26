@@ -14,7 +14,7 @@ eine je Kursmodul. Arbeitsweise, Aufbau der Übungen und die vollständige
 
 Sechs aufeinander aufbauende Übungen an einem Verleihdienst mit Geräten,
 Kunden und Buchungen. Jede Übung hat einen Startpunkt als Git-Tag, eine
-Aufgabenbeschreibung unter `uebungen/`, Tests, die zu Beginn rot sind, und
+Aufgabenbeschreibung unter `dotnet/`, Tests, die zu Beginn rot sind, und
 eine Musterlösung als weiteres Git-Tag. Wer die Tests einer Übung grün hat,
 ist mit ihr fertig.
 
@@ -57,10 +57,10 @@ git checkout -b meine-uebung-01 uebung-01-start
 dotnet test --filter-trait Exercise=01
 ```
 
-Maßgeblich für die Aufgabentexte unter `uebungen/` und die SQL-Serie unter
-`sql/` ist der Stand von `main`. Ein Übungsbranch zeigt beide im Stand
-seines Tags, je nach Tag auch ohne `sql/`. Ein zweiter Worktree hält `main`
-daneben bereit. Er lässt sich anlegen, sobald `main` nicht mehr im ersten
+Maßgeblich für die Aufgabentexte unter `dotnet/` und die SQL-Serie unter
+`sql/` ist der Stand von `main`. Jeder Tag enthält beide samt den Dateien
+`loesung.sql` im Stand von `main` beim letzten Aufbau der Tags. Ein zweiter
+Worktree hält `main` daneben bereit. Er lässt sich anlegen, sobald `main` nicht mehr im ersten
 Arbeitsverzeichnis ausgecheckt ist, also nach dem ersten `git checkout -b`:
 
 ```sh
@@ -93,7 +93,7 @@ git checkout uebung-01-loesung
 ```
 
 `AUFGABEN.md` enthält die Übersicht der Übungen. Jede Übung hat unter
-`uebungen/` eine Aufgabe mit demselben Aufbau. Sie nennt, worum es geht und
+`dotnet/` eine Aufgabe mit demselben Aufbau. Sie nennt, worum es geht und
 was der Startpunkt enthält, und geht dann Schritt für Schritt durch jede
 Datei und Methode. Eine Tabelle nennt zu jedem Test, was er prüft und was
 seine Fehlermeldung bedeutet. Am Ende stehen Fallstricke und Bonus.
@@ -103,10 +103,21 @@ seine Fehlermeldung bedeutet. Am Ende stehen Fallstricke und Bonus.
 ```text
 Rental/                  Anwendung: Datenbank, Geräte, Buchungen, Import, Modell, Betrieb
 Rental.Tests/            Ein Testprojekt, Tests je Übung über den Trait Exercise
-uebungen/                Aufgabenbeschreibungen je Übung
+dotnet/                  Aufgabenbeschreibungen je Übung
+scripts/                 Aufbau der Übungs-Tags
 ```
 
 Die Anwendung ist eine Klassenbibliothek ohne Web-API; die Tests sind der
 einzige Aufrufer. Die Tests bauen das Schema `rental` vor jeder Testklasse
 neu auf und lesen den Serverzustand über `pg_stat_activity`,
 `pg_prepared_statements` und die Systemkataloge.
+
+### Tags neu aufbauen
+
+Die Tags `uebung-NN-start` und `uebung-NN-loesung` bilden eine Kette von
+Commits auf einem Stand von `main`. Jeder Commit der Kette ändert nur
+`Rental/` und `Rental.Tests/`. Nach einer Änderung an `main` setzt
+`scripts/rebuild-exercise-tags.sh` die Kette auf den aktuellen Stand von
+`main` und verschiebt die 13 Tags. Danach übernimmt
+`git push --force origin 'refs/tags/uebung-*'` sie auf GitHub; vorhandene
+Klone holen sie mit `git fetch --force --tags`.
