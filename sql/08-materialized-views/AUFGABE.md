@@ -214,6 +214,17 @@ einem Bericht, der fünf Minuten alt sein darf, passt ein periodischer
 `REFRESH ... CONCURRENTLY` etwa alle vier Minuten, ausgelöst von einem
 Scheduler außerhalb der Datenbank.
 
+Die `EXCLUSIVE`-Sperre aus Aufgabe 4 lässt Leser durch, hält aber einen
+zweiten `REFRESH` sowie `VACUUM` und `ANALYZE` auf derselben View auf.
+Dauert ein Lauf länger als das Intervall, stellt sich der nächste hinter
+ihm an. Der Job setzt deshalb in seiner Sitzung ein kurzes `lock_timeout`
+wie Verbindung B in Aufgabe 4. Der wartende `REFRESH` gibt dann mit
+`55P03` auf, und der nächste Lauf versucht es erneut. Ein
+`statement_timeout` über der üblichen Laufzeit beendet einen hängenden
+`REFRESH`. Ein gewöhnlicher `REFRESH`, der auf einen langen Leser wartet,
+hält zusätzlich alle neuen Leser der View auf, weil sie sich hinter seiner
+angeforderten `ACCESS EXCLUSIVE`-Sperre anstellen.
+
 `ispopulated = f` zeigt eine Materialized View, die mit `WITH NO DATA`
 angelegt und noch nie befüllt wurde. `REFRESH MATERIALIZED VIEW
 CONCURRENTLY` verlangt vorhandene Daten und schlägt auf einer solchen
