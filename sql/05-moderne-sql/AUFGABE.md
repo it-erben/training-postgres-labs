@@ -50,8 +50,11 @@ DROP TABLE IF EXISTS tickets.result_1, tickets.result_2,
    die Monatsgrenzen unabhängig von der Sitzungszeitzone fest.
    `date_trunc('month', ...)` rundet den Zeitpunkt auf den Monatsanfang. Die
    Fensterfunktion `sum() OVER (PARTITION BY team ORDER BY month)` läuft
-   ohne eigene Rahmenklausel und summiert deshalb per Voreinstellung von der
-   ersten Zeile der Partition bis zur aktuellen Zeile.
+   ohne eigene Rahmenklausel. Mit `ORDER BY` gilt dann der Rahmen
+   `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`: Er reicht von der
+   ersten Zeile der Partition bis zur letzten Zeile mit demselben `month`
+   wie die aktuelle Zeile. Weil `month` je Team nur einmal vorkommt, endet
+   die Summe hier genau an der aktuellen Zeile.
 
 2. Erzeuge `tickets.result_2(agent_id, ticket_id, closed_at, rank_no)` mit
    höchstens drei geschlossenen Tickets je Agent, sortiert nach
