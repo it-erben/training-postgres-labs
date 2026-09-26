@@ -71,7 +71,7 @@ SELECT
 FROM generate_series(1, 50) AS s(i)
 ORDER BY s.i;
 
--- status ist zu ~95 % 'closed', damit der partielle Index in Modul 02
+-- status ist zu ~95 % 'closed', damit der partielle Index in Modul 04
 -- sichtbar wirkt. ticket_rows berechnet status und created_at einmal, für
 -- closed_at greift das INSERT über den Spaltennamen darauf zu. seed_rand
 -- liefert mit denselben Argumenten ohnehin denselben Wert, der Alias spart
@@ -82,7 +82,7 @@ ORDER BY s.i;
 -- und sla_target_hours und fasst sie zu einem Objekt zusammen. Jedes Ticket
 -- trägt also nur zwei dieser vier Schlüssel. Selten kommen escalated und
 -- vip_customer dazu, gesetzt nur unterhalb eines festen seed_rand-Schwellwerts
--- (0.12 bzw. 0.18). Darauf baut die GIN-Übung in Modul 02 auf.
+-- (0.12 bzw. 0.18). Darauf baut die GIN-Übung in Modul 04 auf.
 WITH ticket_rows AS (
     SELECT
         t.id,
@@ -139,7 +139,7 @@ ALTER TABLE agent ADD PRIMARY KEY (id), ADD UNIQUE (email);
 ALTER TABLE ticket ADD PRIMARY KEY (id), ADD FOREIGN KEY (agent_id) REFERENCES agent (id);
 
 -- comment.parent_id bildet echte Baumstrukturen für die rekursive CTE in
--- Modul 05. Jeder Kommentar außer dem ersten je Ticket wählt zufällig einen
+-- Modul 06. Jeder Kommentar außer dem ersten je Ticket wählt zufällig einen
 -- der schon erzeugten Kommentare desselben Tickets als Elternteil. Das kann
 -- die Wurzel sein, muss es aber nicht.
 --

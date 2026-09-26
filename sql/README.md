@@ -37,16 +37,16 @@ Die Nummer einer Übung ist die Nummer des Kursmoduls, zu dem sie gehört.
 | --- | ------------------------------------------------------ |
 | 00  | [Soundcheck](00-einrichtung/AUFGABE.md)                |
 | 01  | [Architektur](01-architektur/AUFGABE.md)               |
-| 02  | [Indizes und EXPLAIN](02-explain/AUFGABE.md)           |
-| 03  | [Umstieg von Oracle](03-oracle/AUFGABE.md)             |
-| 04  | [Transaktionen](04-transaktionen/AUFGABE.md)           |
-| 05  | [Moderne SQL-Features](05-moderne-sql/AUFGABE.md)      |
-| 06  | [Constraints](06-constraints/AUFGABE.md)               |
-| 07  | [Partitionierung](07-partitionierung/AUFGABE.md)       |
-| 08  | [Materialized Views](08-materialized-views/AUFGABE.md) |
-| 10  | [Datentypen](10-datentypen/AUFGABE.md)                 |
-| 11  | [Fremddaten](11-fremddaten/AUFGABE.md)                 |
-| 12  | [CNPG aus Anwendersicht](12-cnpg/AUFGABE.md)           |
-| 13  | [Verbindungen und Pooling](13-pooling/AUFGABE.md)      |
-| 14  | [Hochverfügbarkeit](14-hochverfuegbarkeit/AUFGABE.md)  |
-| 15  | [Backup und Recovery](15-backup-recovery/AUFGABE.md)   |
+| 02  | [Umstieg von Oracle](02-oracle/AUFGABE.md)             |
+| 03  | [Transaktionen](03-transaktionen/AUFGABE.md)           |
+| 04  | [Indizes und EXPLAIN](04-explain/AUFGABE.md)           |
+| 05  | [Datentypen](05-datentypen/AUFGABE.md)                 |
+| 06  | [Moderne SQL-Features](06-moderne-sql/AUFGABE.md)      |
+| 07  | [Constraints](07-constraints/AUFGABE.md)               |
+| 08  | [Partitionierung](08-partitionierung/AUFGABE.md)       |
+| 09  | [Materialized Views](09-materialized-views/AUFGABE.md) |
+| 11  | [CNPG aus Anwendersicht](11-cnpg/AUFGABE.md)           |
+| 12  | [Verbindungen und Pooling](12-pooling/AUFGABE.md)      |
+| 13  | [Hochverfügbarkeit](13-hochverfuegbarkeit/AUFGABE.md)  |
+| 14  | [Backup und Recovery](14-backup-recovery/AUFGABE.md)   |
+| 15  | [Fremddaten](15-fremddaten/AUFGABE.md)                 |

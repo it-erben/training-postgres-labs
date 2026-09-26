@@ -140,7 +140,7 @@ Der erste Blick in die Daten:
 
 Die Werte hängen nur von `setup.sql` ab und sind in jeder Datenbank gleich.
 Rund 95 Prozent der Tickets sind geschlossen, jedes zehnte hat keinen
-Agent. Die 3784 offenen Tickets des Teams `Technical` kommen in Übung 2
+Agent. Die 3784 offenen Tickets des Teams `Technical` kommen in Übung 4
 wieder vor.
 
 ## Hinweise
@@ -165,7 +165,7 @@ Was bei `PRÜFEN` zu tun ist:
 - `Anlegen in tickets`: Bei `Schema tickets fehlt` führe `setup.sql` aus.
   Bei `kein CREATE auf Schema tickets` sag der Kursleitung Bescheid.
 - `postgres_fdw`: `Extension fehlt` oder `kein USAGE`. Sag der Kursleitung
-  Bescheid; die Extension braucht erst Übung 11.
+  Bescheid; die Extension braucht erst Übung 15.
 - `Laufzeit setup.sql` und `WAL von setup.sql`: Fehlt die Angabe in
   `tickets.setup_run`, stammt das Schema aus einer älteren Fassung von
   `setup.sql`. Führe `setup.sql` erneut aus.
