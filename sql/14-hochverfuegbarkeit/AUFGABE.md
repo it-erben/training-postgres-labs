@@ -92,10 +92,10 @@ auslösen darfst, sagt dir die Kursleitung.
      wähle ein Replikat und schalte um.
 
      ```bash
-     kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L role
+     kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L cnpg.io/instanceRole
      kubectl cnpg promote <cluster> <replikat-pod> -n training-postgres
      kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> \
-       -L role -w
+       -L cnpg.io/instanceRole -w
      ```
 
      Ohne `kubectl` zeigt Headlamp die Rollen unter `Workloads`, `Pods`,

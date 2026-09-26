@@ -81,9 +81,9 @@ JOIN (VALUES ('daf79a48-a152-47d4-9d92-3cca9782adf0'::uuid,
 -- -- RW: is_replica f. RO: is_replica t, andere server_addr.
 --
 -- Variante A, mit dem Recht, im eigenen Cluster umzuschalten:
---   kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L role
+--   kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L cnpg.io/instanceRole
 --   kubectl cnpg promote <cluster> <replikat-pod> -n training-postgres
---   kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L role -w
+--   kubectl -n training-postgres get pods -l cnpg.io/cluster=<cluster> -L cnpg.io/instanceRole -w
 --
 -- RW-Server, dasselbe Query Tool, nach dem Switchover:
 -- -- Die Beobachtungsabfrage scheitert. Die alte Primärinstanz hat beim
