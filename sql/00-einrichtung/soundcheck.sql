@@ -3,8 +3,11 @@
 -- als eine Ausführung starten (F5). Die Abfrage liest nur.
 --
 -- Die Zeilenzahlen stammen aus pg_class.reltuples. setup.sql endet mit
--- ANALYZE, das bei diesen Tabellengrößen jede Seite liest; die Werte sind
--- danach exakt, ohne dass die Abfrage 2,8 Millionen Zeilen zählt.
+-- ANALYZE. Es liest jede Seite einer Tabelle, solange sie unter 300 mal
+-- default_statistics_target Seiten bleibt, beim Standardwert 100 also
+-- unter 30000; tickets.comment hat 26641. Die Werte sind danach exakt,
+-- ohne dass die Abfrage 2,8 Millionen Zeilen zählt. Bei größeren Tabellen
+-- rechnet ANALYZE reltuples aus einer Stichprobe hoch.
 --
 -- Vor setup.sql fehlt das Schema tickets. tickets.setup_run liest die
 -- Abfrage deshalb über query_to_xml und nur, wenn die Tabelle existiert;
